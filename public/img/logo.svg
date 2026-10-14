@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="JEC">
+  <!-- Placeholder emblem. Put the official logo at public/img/jec-logo.png and it is used automatically. -->
+  <circle cx="60" cy="60" r="58" fill="#ffffff"/>
+  <circle cx="60" cy="60" r="54" fill="#1b3a6b"/>
+  <circle cx="60" cy="60" r="44" fill="none" stroke="#f2a541" stroke-width="2.5"/>
+  <defs>
+    <path id="arc-top" d="M 22 60 A 38 38 0 0 1 98 60"/>
+    <path id="arc-bottom" d="M 18 60 A 42 42 0 0 0 102 60"/>
+  </defs>
+  <text font-family="Georgia, 'Times New Roman', serif" font-size="9" letter-spacing="1.6" fill="#ffffff" text-anchor="middle">
+    <textPath href="#arc-bottom" startOffset="50%">JABALPUR · 1947</textPath>
+  </text>
+  <text x="60" y="71" font-family="Georgia, 'Times New Roman', serif" font-size="32" font-weight="700" fill="#ffffff" text-anchor="middle">JEC</text>
+  <path d="M40 40 h40" stroke="#f2a541" stroke-width="2.5" stroke-linecap="round"/>
+</svg>

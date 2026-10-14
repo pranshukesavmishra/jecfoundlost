@@ -1,0 +1,46 @@
+<%- include('../partials/head') %>
+<div class="container">
+  <h1 style="margin:24px 0 0">Users</h1>
+  <%- include('nav') %>
+
+  <form class="filters" method="get" action="/admin/users">
+    <input type="search" name="q" value="<%= q %>" placeholder="Name, phone or enrollment no.">
+    <button class="btn btn-primary">Search</button>
+  </form>
+
+  <div class="panel table-wrap">
+    <table>
+      <thead><tr><th>Name</th><th>Phone</th><th>ID / Dept.</th><th>Posts</th><th>Joined</th><th>Role</th><th>Actions</th></tr></thead>
+      <tbody>
+        <% users.forEach((u) => { %>
+          <tr>
+            <td><%= u.name %><% if (u.email) { %><div class="muted small"><%= u.email %></div><% } %></td>
+            <td><%= u.phone %></td>
+            <td><%= u.college_id || '—' %><div class="muted small"><%= u.department || '' %></div></td>
+            <td><%= u.item_count %></td>
+            <td class="small"><%= fmtDate(u.created_at) %></td>
+            <td><%= u.role %><% if (u.is_banned) { %> <span class="tag tag-lost">blocked</span><% } %></td>
+            <td>
+              <div class="row" style="gap:6px">
+                <form method="post" action="/admin/users/<%= u.id %>/reset" data-confirm="Reset password for <%= u.name %>?"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn btn-outline btn-sm">Reset password</button></form>
+                <% if (u.id !== user.id) { %>
+                  <% if (u.is_banned) { %>
+                    <form method="post" action="/admin/users/<%= u.id %>/unban"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn btn-outline btn-sm">Unblock</button></form>
+                  <% } else { %>
+                    <form method="post" action="/admin/users/<%= u.id %>/ban" data-confirm="Block <%= u.name %>? Their open posts will be closed."><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn btn-danger btn-sm">Block</button></form>
+                  <% } %>
+                  <% if (u.role === 'admin') { %>
+                    <form method="post" action="/admin/users/<%= u.id %>/demote"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn btn-outline btn-sm">Remove admin</button></form>
+                  <% } else { %>
+                    <form method="post" action="/admin/users/<%= u.id %>/promote" data-confirm="Make <%= u.name %> an admin?"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn btn-outline btn-sm">Make admin</button></form>
+                  <% } %>
+                <% } %>
+              </div>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+<%- include('../partials/foot') %>

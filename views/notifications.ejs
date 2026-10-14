@@ -1,0 +1,21 @@
+<%- include('partials/head') %>
+<div class="container narrow">
+  <h1 style="margin:24px 0 8px">Notifications</h1>
+  <div class="panel notify-banner hidden" id="notify-banner" style="margin-bottom:16px">
+    <div>
+      <strong>Get these on your phone too</strong>
+      <div class="muted small">Turn on push notifications for this device.</div>
+    </div>
+    <button class="btn btn-primary btn-sm" data-push-enable><%- icon('bell') %> Turn on</button>
+  </div>
+  <div class="panel">
+    <% if (!notes.length) { %><p class="muted">Nothing yet. We'll let you know when someone responds to your posts.</p><% } %>
+    <% notes.forEach((n) => { %>
+      <div class="note <%= n.is_read ? '' : 'unread' %>">
+        <% if (n.link) { %><a href="<%= n.link %>"><%= n.text %></a><% } else { %><%= n.text %><% } %>
+        <div class="muted small"><%= timeAgo(n.created_at) %></div>
+      </div>
+    <% }) %>
+  </div>
+</div>
+<%- include('partials/foot') %>

@@ -1,0 +1,83 @@
+<%- include('partials/head') %>
+
+<section class="hero">
+  <div class="container">
+    <h1>Lost something on campus? Found something?</h1>
+    <p>Post it here and the whole of <%= site.college %> gets to see it. When there's a match, owner and finder get each other's number.</p>
+    <div class="actions">
+      <a class="btn btn-lost" href="/report/lost"><%- icon('search') %> I lost something</a>
+      <a class="btn btn-found" href="/report/found"><%- icon('hand') %> I found something</a>
+    </div>
+  </div>
+</section>
+
+<div class="container">
+  <div class="stats">
+    <div class="stat lost"><b><%= stats.open_lost || 0 %></b><span>Items being searched</span></div>
+    <div class="stat found"><b><%= stats.open_found || 0 %></b><span>Found, waiting for owner</span></div>
+    <div class="stat"><b><%= stats.returned || 0 %></b><span>Returned to owners</span></div>
+  </div>
+
+  <div class="panel notify-banner hidden" id="notify-banner" style="margin-top:16px">
+    <div>
+      <strong>Get alerts for new lost &amp; found posts</strong>
+      <div class="muted small">We'll ping your phone or laptop the moment something is posted.</div>
+    </div>
+    <button class="btn btn-primary btn-sm" data-push-enable><%- icon('bell') %> Turn on notifications</button>
+  </div>
+
+  <form class="filters" method="get" action="/" role="search">
+    <input type="search" name="q" value="<%= filters.q %>" placeholder="Search: calculator, ID card, library…" aria-label="Search">
+    <select name="category" aria-label="Category" onchange="this.form.submit()">
+      <option value="">All categories</option>
+      <% config.categories.forEach((c) => { %><option <%= filters.category === c ? 'selected' : '' %>><%= c %></option><% }) %>
+    </select>
+    <input type="hidden" name="type" value="<%= filters.type %>">
+    <input type="hidden" name="status" value="<%= filters.status %>">
+    <button class="btn btn-primary"><%- icon('search') %> Search</button>
+  </form>
+
+  <%
+    const link = (o) => {
+      const p = new URLSearchParams();
+      const merged = { q: filters.q, category: filters.category, type: filters.type, status: filters.status, ...o };
+      for (const [k, v] of Object.entries(merged)) if (v && !(k === 'status' && v === 'open')) p.set(k, v);
+      const s = p.toString();
+      return s ? `/?${s}` : '/';
+    };
+  %>
+  <div class="chips">
+    <a class="chip <%= filters.status === 'open' && !filters.type ? 'active' : '' %>" href="<%= link({ type: '', status: 'open' }) %>">All open</a>
+    <a class="chip <%= filters.status === 'open' && filters.type === 'lost' ? 'active' : '' %>" href="<%= link({ type: 'lost', status: 'open' }) %>">Lost</a>
+    <a class="chip <%= filters.status === 'open' && filters.type === 'found' ? 'active' : '' %>" href="<%= link({ type: 'found', status: 'open' }) %>">Found</a>
+    <a class="chip <%= filters.status === 'resolved' ? 'active' : '' %>" href="<%= link({ type: '', status: 'resolved' }) %>">Returned ✓</a>
+  </div>
+
+  <% if (items.length) { %>
+    <div class="grid">
+      <% items.forEach((item) => { %><%- include('partials/card', { item }) %><% }) %>
+    </div>
+    <% if (pages > 1) { %>
+      <nav class="pager">
+        <% if (page > 1) { %><a class="btn btn-outline btn-sm" href="<%= link({ page: page - 1 }) %>">← Newer</a><% } %>
+        <span class="muted small" style="align-self:center">Page <%= page %> of <%= pages %></span>
+        <% if (page < pages) { %><a class="btn btn-outline btn-sm" href="<%= link({ page: page + 1 }) %>">Older →</a><% } %>
+      </nav>
+    <% } %>
+  <% } else { %>
+    <div class="empty">
+      <%- icon('box') %>
+      <% if (filters.q || filters.category) { %>
+        <p>Nothing matches your search. Try different words, or post it yourself.</p>
+      <% } else { %>
+        <p>No posts here yet.</p>
+      <% } %>
+      <div class="row" style="justify-content:center">
+        <a class="btn btn-lost btn-sm" href="/report/lost">Report lost item</a>
+        <a class="btn btn-found btn-sm" href="/report/found">Report found item</a>
+      </div>
+    </div>
+  <% } %>
+</div>
+
+<%- include('partials/foot') %>

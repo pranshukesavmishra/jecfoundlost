@@ -1,0 +1,22 @@
+<%- include('../partials/head') %>
+<div class="container narrow">
+  <h1 style="margin:24px 0 0">Settings</h1>
+  <%- include('nav') %>
+
+  <form class="panel" method="post" action="/admin/settings">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <label for="points">Collection points <span class="hint">(one per line — where finders can deposit items)</span></label>
+    <textarea id="points" name="points" rows="8"><%= points.join('\n') %></textarea>
+    <button class="btn btn-primary" style="margin-top:12px">Save</button>
+  </form>
+
+  <div class="panel" style="margin-top:16px">
+    <h3>Expiry rules</h3>
+    <ul class="small">
+      <li>Lost posts close after <strong><%= config.LOST_EXPIRY_DAYS %> days</strong>; found posts after <strong><%= config.FOUND_EXPIRY_DAYS %> days</strong>.</li>
+      <li>Reminder sent <strong><%= config.REMINDER_DAYS_BEFORE %> days</strong> before; posters can extend <strong><%= config.MAX_EXTENSIONS %></strong> times.</li>
+    </ul>
+    <p class="muted small">Change these with the <code>LOST_EXPIRY_DAYS</code>, <code>FOUND_EXPIRY_DAYS</code>, <code>REMINDER_DAYS_BEFORE</code> and <code>MAX_EXTENSIONS</code> environment variables.</p>
+  </div>
+</div>
+<%- include('../partials/foot') %>

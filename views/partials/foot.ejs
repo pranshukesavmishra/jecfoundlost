@@ -1,0 +1,30 @@
+</main>
+<footer class="site-footer">
+  <div class="container">
+    <div>
+      <strong><%= site.name %></strong> · <%= site.college %><br>
+      <span class="muted small"><%= site.address %></span><br>
+      <span class="small"><a href="/about">How it works</a> · <a href="#" data-push-toggle>Notifications</a><% if (user) { %> · <a href="/me/profile">My profile</a> · <form method="post" action="/logout" style="display:inline"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="linkbtn">Sign out</button></form><% } %></span>
+    </div>
+    <div class="powered">
+      <%- icon('gear') %>
+      <span>Powered by <%= site.poweredBy %><small><%= site.collegeShort %></small></span>
+    </div>
+  </div>
+</footer>
+
+<nav class="mobile-bar" aria-label="Quick actions">
+  <a href="/" class="<%= path === '/' ? 'active' : '' %>"><%- icon('home') %>Browse</a>
+  <a href="/report/lost" class="<%= path === '/report/lost' ? 'active' : '' %>"><%- icon('search') %>Lost</a>
+  <a href="/report/found" class="<%= path === '/report/found' ? 'active' : '' %>"><%- icon('hand') %>Found</a>
+  <% if (user) { %>
+    <a href="/me" class="<%= path === '/me' ? 'active' : '' %>"><%- icon('box') %>Mine</a>
+    <% if (user.role === 'admin') { %><a href="/admin" class="<%= path.startsWith('/admin') ? 'active' : '' %>"><%- icon('gear') %>Admin</a><% } else { %><a href="/me/profile" class="<%= path === '/me/profile' ? 'active' : '' %>"><%- icon('user') %>Profile</a><% } %>
+  <% } else { %>
+    <a href="/login"><%- icon('user') %>Sign in</a>
+  <% } %>
+</nav>
+
+<script src="/js/app.js?v=1" defer></script>
+</body>
+</html>

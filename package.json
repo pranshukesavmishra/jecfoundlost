@@ -1,0 +1,24 @@
+{
+  "name": "jec-lost-found",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Lost & Found portal for Jabalpur Engineering College — powered by the Department of Mechatronics Engineering",
+  "main": "src/server.js",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env --disable-warning=ExperimentalWarning src/server.js",
+    "dev": "node --env-file-if-exists=.env --disable-warning=ExperimentalWarning --watch src/server.js",
+    "test": "node --disable-warning=ExperimentalWarning --test test/*.test.js"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cookie-parser": "^1.4.7",
+    "ejs": "^7.0.1",
+    "express": "^5.3.0",
+    "multer": "^2.4.0",
+    "web-push": "^3.6.7"
+  }
+}

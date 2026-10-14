@@ -1,0 +1,210 @@
+<%- include('partials/head') %>
+<%
+  const isLost = item.type === 'lost';
+  const shareText = `${isLost ? 'LOST' : 'FOUND'} at ${site.collegeShort}: ${item.title} (${item.location}). Can you help? ${shareUrl}`;
+  const wa = (phone, text) => `https://wa.me/91${phone}?text=${encodeURIComponent(text)}`;
+  const handoverText = item.handover && item.handover !== 'me' ? item.handover : null;
+%>
+<div class="container">
+  <p style="margin:16px 0 0"><a href="/">← Back to all posts</a></p>
+
+  <div class="item-layout">
+    <div>
+      <% if (item.photos.length) { %>
+        <div class="gallery-main"><img id="gallery-main" src="/uploads/<%= item.photos[0] %>" alt="Photo of <%= item.title %>"></div>
+        <% if (item.photos.length > 1) { %>
+          <div class="thumbs">
+            <% item.photos.forEach((p, i) => { %>
+              <button type="button" class="<%= i === 0 ? 'active' : '' %>" data-thumb="/uploads/<%= p %>" aria-label="Photo <%= i + 1 %>"><img src="/uploads/<%= p %>" alt=""></button>
+            <% }) %>
+          </div>
+        <% } %>
+      <% } else { %>
+        <div class="gallery-main"><div class="empty"><%- icon('image') %><div>No photo</div></div></div>
+      <% } %>
+    </div>
+
+    <div class="stack">
+      <div>
+        <div class="row" style="gap:8px">
+          <span class="tag tag-<%= item.type %>"><%= isLost ? 'Lost' : 'Found' %></span>
+          <span class="tag tag-<%= item.status === 'resolved' ? 'resolved' : 'status' %>"><%= STATUS_LABEL[item.status] %></span>
+        </div>
+        <h1 style="margin-top:8px"><%= item.title %></h1>
+
+        <dl class="facts">
+          <dt>Category</dt><dd><%= item.category %></dd>
+          <dt><%= isLost ? 'Lost near' : 'Found at' %></dt><dd><%= item.location %></dd>
+          <% if (item.event_date) { %><dt><%= isLost ? 'Lost on' : 'Found on' %></dt><dd><%= fmtDay(item.event_date) %></dd><% } %>
+          <% if (!isLost) { %>
+            <dt>Where is it now</dt><dd><%= handoverText ? `Deposited at ${handoverText}` : 'With the finder' %></dd>
+          <% } %>
+          <dt>Posted by</dt><dd><%= shortName(item.poster_name) %><% if (item.poster_department) { %> · <span class="muted"><%= item.poster_department %></span><% } %></dd>
+          <dt>Posted</dt><dd><%= timeAgo(item.created_at) %></dd>
+          <% if (item.status === 'open') { %><dt>Auto-closes</dt><dd><%= fmtDate(item.expires_at) %> <span class="muted small">(<%= timeLeft(item.expires_at) %>)</span></dd><% } %>
+        </dl>
+
+        <% if (item.description) { %><p class="desc"><%= item.description %></p><% } %>
+
+        <% if (item.secret_detail && (isOwner || isAdmin)) { %>
+          <div class="secret"><strong>Secret detail (only the finder and admins can see this):</strong> <%= item.secret_detail %><br><span class="small">Ask people who claim the item to describe this before handing it over.</span></div>
+        <% } %>
+
+        <% if (item.status !== 'open') { %>
+          <div class="alert <%= item.status === 'resolved' ? 'alert-ok' : '' %>" style="margin-top:12px">
+            <% if (item.status === 'resolved') { %>✓ This item was returned to its owner.<% } else if (item.status === 'expired') { %>This post expired automatically after its time ran out.<% } else { %>This post was closed<%= item.closed_by === 'admin' ? ' by an admin' : '' %>.<% } %>
+            <% if (item.close_note) { %><div class="small" style="margin-top:4px">"<%= item.close_note %>"</div><% } %>
+          </div>
+        <% } %>
+      </div>
+
+      <div class="row">
+        <a class="btn btn-outline btn-sm" href="https://wa.me/?text=<%= encodeURIComponent(shareText) %>" target="_blank" rel="noopener"><%- icon('chat') %> Share on WhatsApp</a>
+        <button class="btn btn-outline btn-sm" type="button" data-share data-title="<%= item.title %>" data-text="<%= shareText %>" data-url="<%= shareUrl %>"><%- icon('share') %> Share</button>
+      </div>
+
+      <%# ---------- Visitor / responder ---------- %>
+      <% if (!user && item.status === 'open') { %>
+        <div class="panel">
+          <strong><%= isLost ? 'Have you found this?' : 'Is this yours?' %></strong>
+          <p class="muted small">Sign in with your mobile number to respond. Your number is only shared after the poster confirms.</p>
+          <a class="btn btn-primary" href="/login?next=<%= encodeURIComponent(`/items/${item.id}`) %>">Sign in to respond</a>
+        </div>
+      <% } %>
+
+      <% if (canRespond) { %>
+        <details class="action-box" open>
+          <summary><%= isLost ? '🙋 I found this' : '🙋 This is mine' %></summary>
+          <form method="post" action="/items/<%= item.id %>/respond" enctype="multipart/form-data" data-photo-form>
+            <input type="hidden" name="_csrf" value="<%= csrf %>">
+            <div class="field">
+              <label for="message"><%= isLost ? 'Where and when did you find it? Where is it now?' : 'Describe it so the finder knows it\'s yours' %></label>
+              <textarea id="message" name="message" required maxlength="1000" placeholder="<%= isLost ? 'e.g. Found it on the 2nd floor of the library this morning, I have it with me.' : 'e.g. Black cover, my name is written inside, has a crack on the corner, wallpaper is a bike.' %>"></textarea>
+            </div>
+            <div class="field">
+              <label for="photo">Photo <span class="hint">(optional)</span></label>
+              <input id="photo" type="file" name="photo" accept="image/*">
+            </div>
+            <p class="muted small">When <%= shortName(item.poster_name) %> confirms, you'll both see each other's mobile number.</p>
+            <button class="btn btn-primary btn-block">Send</button>
+          </form>
+        </details>
+      <% } %>
+
+      <% if (myResponse && !isOwner) { %>
+        <div class="panel">
+          <h3>Your response</h3>
+          <p class="desc"><%= myResponse.message %></p>
+          <% if (myResponse.status === 'pending') { %>
+            <div class="alert alert-warn small"><%- icon('clock') %> Waiting for <%= shortName(item.poster_name) %> to confirm. You'll get a notification.</div>
+            <form method="post" action="/responses/<%= myResponse.id %>/withdraw" style="margin-top:10px">
+              <input type="hidden" name="_csrf" value="<%= csrf %>">
+              <button class="btn btn-outline btn-sm">Withdraw</button>
+            </form>
+          <% } else if (myResponse.status === 'rejected') { %>
+            <div class="alert small">The poster said this doesn't match.</div>
+          <% } %>
+        </div>
+      <% } %>
+
+      <% if (canSeePosterPhone && !isOwner) { %>
+        <div class="contact-box">
+          <div class="small">Match confirmed! Contact <%= item.poster_name %>:</div>
+          <div class="phone"><%= item.poster_phone %></div>
+          <div class="row" style="margin-top:8px">
+            <a class="btn btn-found btn-sm" href="tel:+91<%= item.poster_phone %>"><%- icon('phone') %> Call</a>
+            <a class="btn btn-outline btn-sm" target="_blank" rel="noopener" href="<%= wa(item.poster_phone, `Hi, this is about the ${isLost ? 'lost' : 'found'} item "${item.title}" on ${site.name}.`) %>"><%- icon('chat') %> WhatsApp</a>
+          </div>
+          <% if (handoverText) { %><p class="small" style="margin:8px 0 0">The item is deposited at <strong><%= handoverText %></strong>. Carry your college ID when collecting.</p><% } %>
+        </div>
+      <% } %>
+
+      <%# ---------- Owner / admin ---------- %>
+      <% if (isOwner || isAdmin) { %>
+        <div class="panel">
+          <h2><%= isLost ? 'People who say they found it' : 'People who say it\'s theirs' %> (<%= responses.length %>)</h2>
+          <% if (!responses.length) { %>
+            <p class="muted small">No responses yet. You'll get a notification as soon as someone responds. Sharing the post on WhatsApp groups helps!</p>
+          <% } %>
+          <% responses.forEach((r) => { %>
+            <div class="response">
+              <div class="row" style="justify-content:space-between">
+                <strong><%= r.status === 'accepted' || isAdmin ? r.responder_name : shortName(r.responder_name) %></strong>
+                <span class="tag tag-<%= r.status === 'accepted' ? 'resolved' : 'status' %>"><%= r.status %></span>
+              </div>
+              <div class="muted small"><%= r.responder_department || '' %> · <%= timeAgo(r.created_at) %></div>
+              <p class="desc" style="margin:8px 0 0"><%= r.message %></p>
+              <% if (r.photo) { %><a href="/uploads/<%= r.photo %>" target="_blank"><img src="/uploads/<%= r.photo %>" alt="Photo from responder" loading="lazy"></a><% } %>
+
+              <% if (r.status === 'accepted' || isAdmin) { %>
+                <div class="contact-box" style="margin-top:10px">
+                  <div class="phone"><%= r.responder_phone %></div>
+                  <div class="row" style="margin-top:8px">
+                    <a class="btn btn-found btn-sm" href="tel:+91<%= r.responder_phone %>"><%- icon('phone') %> Call</a>
+                    <a class="btn btn-outline btn-sm" target="_blank" rel="noopener" href="<%= wa(r.responder_phone, `Hi, this is about "${item.title}" on ${site.name}.`) %>"><%- icon('chat') %> WhatsApp</a>
+                  </div>
+                </div>
+              <% } %>
+
+              <% if (isOwner && r.status === 'pending' && item.status === 'open') { %>
+                <div class="row" style="margin-top:10px">
+                  <form method="post" action="/responses/<%= r.id %>/accept">
+                    <input type="hidden" name="_csrf" value="<%= csrf %>">
+                    <button class="btn btn-found btn-sm"><%- icon('check') %> <%= isLost ? "Yes, that's mine — share numbers" : 'Yes, it\'s theirs — share numbers' %></button>
+                  </form>
+                  <form method="post" action="/responses/<%= r.id %>/reject">
+                    <input type="hidden" name="_csrf" value="<%= csrf %>">
+                    <button class="btn btn-outline btn-sm"><%- icon('x') %> Doesn't match</button>
+                  </form>
+                </div>
+              <% } %>
+            </div>
+          <% }) %>
+        </div>
+
+        <% if (item.status === 'open') { %>
+          <details class="action-box">
+            <summary>✅ <%= isLost ? 'I got it back' : 'Returned to the owner' %></summary>
+            <form method="post" action="/items/<%= item.id %>/resolve">
+              <input type="hidden" name="_csrf" value="<%= csrf %>">
+              <div class="field"><label for="rnote">Note <span class="hint">(optional, shown on the post)</span></label>
+                <input id="rnote" type="text" name="note" maxlength="300" placeholder="e.g. Thanks Priya from ECE!"></div>
+              <button class="btn btn-found" style="margin-top:12px">Mark as returned</button>
+            </form>
+          </details>
+          <details class="action-box">
+            <summary>Close this post</summary>
+            <form method="post" action="/items/<%= item.id %>/close">
+              <input type="hidden" name="_csrf" value="<%= csrf %>">
+              <div class="field"><label for="cnote">Reason <span class="hint">(optional)</span></label>
+                <input id="cnote" type="text" name="note" maxlength="300" placeholder="e.g. No longer needed"></div>
+              <button class="btn btn-danger" style="margin-top:12px">Close post</button>
+            </form>
+          </details>
+        <% } %>
+
+        <% if (isOwner && (item.status === 'open' || item.status === 'expired') && item.extensions < config.MAX_EXTENSIONS) { %>
+          <form method="post" action="/items/<%= item.id %>/extend" class="row">
+            <input type="hidden" name="_csrf" value="<%= csrf %>">
+            <button class="btn btn-outline btn-sm"><%- icon('clock') %> <%= item.status === 'expired' ? 'Reopen' : 'Extend' %> for <%= isLost ? config.LOST_EXPIRY_DAYS : config.FOUND_EXPIRY_DAYS %> more days</button>
+            <span class="muted small"><%= config.MAX_EXTENSIONS - item.extensions %> extension(s) left</span>
+          </form>
+        <% } %>
+
+        <% if (isAdmin) { %>
+          <div class="panel">
+            <h3>Admin</h3>
+            <div class="row">
+              <% if (item.status !== 'open') { %>
+                <form method="post" action="/admin/items/<%= item.id %>/reopen"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="back" value="item"><button class="btn btn-outline btn-sm">Reopen</button></form>
+              <% } %>
+              <form method="post" action="/admin/items/<%= item.id %>/delete" data-confirm="Delete this post and its photos permanently?"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn btn-danger btn-sm">Delete permanently</button></form>
+            </div>
+            <p class="muted small" style="margin-bottom:0">Poster: <%= item.poster_name %> · <%= item.poster_phone %></p>
+          </div>
+        <% } %>
+      <% } %>
+    </div>
+  </div>
+</div>
+<%- include('partials/foot') %>

@@ -1,0 +1,50 @@
+<%- include('partials/head') %>
+<div class="container narrow">
+  <div class="row" style="margin:24px 0 8px">
+    <h1 style="margin:0">My posts</h1>
+    <span class="spacer"></span>
+    <a class="btn btn-lost btn-sm" href="/report/lost">+ Lost</a>
+    <a class="btn btn-found btn-sm" href="/report/found">+ Found</a>
+  </div>
+
+  <div class="panel">
+    <% if (!items.length) { %>
+      <p class="muted">You haven't posted anything yet.</p>
+    <% } %>
+    <% items.forEach((i) => { %>
+      <a class="list-item" href="/items/<%= i.id %>">
+        <div class="list-thumb"><% if (i.photo) { %><img src="/uploads/<%= i.photo %>" alt=""><% } %></div>
+        <div style="flex:1;min-width:0">
+          <div class="row" style="gap:6px">
+            <span class="tag tag-<%= i.type %>"><%= i.type %></span>
+            <span class="tag tag-<%= i.status === 'resolved' ? 'resolved' : 'status' %>"><%= STATUS_LABEL[i.status] %></span>
+            <% if (i.pending_count) { %><span class="tag" style="background:var(--accent);color:#2b1a00"><%= i.pending_count %> new response<%= i.pending_count > 1 ? 's' : '' %></span><% } %>
+          </div>
+          <strong><%= i.title %></strong>
+          <div class="muted small"><%= timeAgo(i.created_at) %><% if (i.status === 'open') { %> · <%= timeLeft(i.expires_at) %><% } %></div>
+        </div>
+      </a>
+    <% }) %>
+  </div>
+
+  <h2 style="margin-top:32px">My responses</h2>
+  <div class="panel">
+    <% if (!responses.length) { %>
+      <p class="muted">When you tell someone "I found this" or "this is mine", it shows up here.</p>
+    <% } %>
+    <% responses.forEach((r) => { %>
+      <a class="list-item" href="/items/<%= r.item_id %>">
+        <div class="list-thumb"><% if (r.photo) { %><img src="/uploads/<%= r.photo %>" alt=""><% } %></div>
+        <div style="flex:1;min-width:0">
+          <div class="row" style="gap:6px">
+            <span class="tag tag-<%= r.type %>"><%= r.type %></span>
+            <span class="tag tag-<%= r.status === 'accepted' ? 'resolved' : 'status' %>"><%= r.status === 'accepted' ? 'confirmed — see contact' : r.status %></span>
+          </div>
+          <strong><%= r.title %></strong>
+          <div class="muted small"><%= timeAgo(r.created_at) %></div>
+        </div>
+      </a>
+    <% }) %>
+  </div>
+</div>
+<%- include('partials/foot') %>

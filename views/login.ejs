@@ -1,0 +1,24 @@
+<%- include('partials/head') %>
+<div class="container narrow" style="max-width:440px">
+  <div class="panel" style="margin-top:32px">
+    <h1>Sign in</h1>
+    <p class="muted small">Use the mobile number you registered with.</p>
+    <% if (error) { %><div class="alert alert-error" role="alert" style="margin-bottom:12px"><%= error %></div><% } %>
+    <form method="post" action="/login">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <input type="hidden" name="next" value="<%= next %>">
+      <div class="field">
+        <label for="phone">Mobile number</label>
+        <input id="phone" type="tel" name="phone" inputmode="numeric" autocomplete="tel" required value="<%= phone %>" placeholder="10-digit number">
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input id="password" type="password" name="password" autocomplete="current-password" required>
+      </div>
+      <button class="btn btn-primary btn-block" style="margin-top:16px">Sign in</button>
+    </form>
+    <p class="small center" style="margin-top:16px">New here? <a href="/register?next=<%= encodeURIComponent(next) %>">Create an account</a></p>
+    <p class="muted small center">Forgot your password? Ask a Lost &amp; Found admin in the <%= site.poweredBy %> to reset it.</p>
+  </div>
+</div>
+<%- include('partials/foot') %>

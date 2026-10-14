@@ -1,0 +1,22 @@
+<a class="card" href="/items/<%= item.id %>">
+  <div class="card-img">
+    <% if (item.photo) { %>
+      <img src="/uploads/<%= item.photo %>" alt="" loading="lazy">
+    <% } else { %>
+      <div class="placeholder"><%- icon('image') %><%= item.category %></div>
+    <% } %>
+    <span class="tag tag-<%= item.type %>"><%= item.type === 'lost' ? 'Lost' : 'Found' %></span>
+  </div>
+  <div class="card-body">
+    <div class="card-title"><%= item.title %></div>
+    <div class="card-meta"><%= item.location %></div>
+    <div class="card-foot">
+      <span><%= timeAgo(item.created_at) %></span>
+      <% if (item.status === 'open') { %>
+        <span><%= item.response_count ? `${item.response_count} response${item.response_count > 1 ? 's' : ''}` : timeLeft(item.expires_at) %></span>
+      <% } else { %>
+        <span class="tag tag-<%= item.status === 'resolved' ? 'resolved' : 'status' %>"><%= STATUS_LABEL[item.status] %></span>
+      <% } %>
+    </div>
+  </div>
+</a>
