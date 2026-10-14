@@ -2,6 +2,25 @@
 <div class="container narrow">
   <%- include('nav') %>
 
+  <form class="panel" method="post" action="/admin/theme" style="margin-bottom:16px">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <div class="panel-title"><span class="step-num"><%- icon('palette') %></span><div><h3>Colour theme</h3><p>Changes the look for everyone instantly. Add your own themes in <code>src/config.js</code>.</p></div></div>
+    <div class="theme-grid">
+      <% config.themes.forEach((t) => { %>
+        <label class="theme-opt">
+          <input type="radio" name="theme" value="<%= t.id %>" <%= currentTheme === t.id ? 'checked' : '' %>>
+          <span>
+            <span class="swatch" style="display:block;background: radial-gradient(120px 80px at 0% 0%, <%= t.glow[0] %>, transparent 70%), radial-gradient(120px 80px at 100% 100%, <%= t.glow[2] %>99, transparent 70%), <%= t.hero %>">
+              <i style="background: <%= t.primary %>"></i><b style="background: <%= t.glow[1] %>"></b>
+            </span>
+            <span class="t-name"><%= t.name %><%- icon('circle-check-big') %></span>
+          </span>
+        </label>
+      <% }) %>
+    </div>
+    <button class="btn btn-primary" style="margin-top:16px"><%- icon('check') %> Apply theme</button>
+  </form>
+
   <form class="panel" method="post" action="/admin/settings">
     <input type="hidden" name="_csrf" value="<%= csrf %>">
     <div class="panel-title"><span class="step-num"><%- icon('building-2') %></span><div><h3>Collection points</h3><p>Where finders can deposit items. One per line.</p></div></div>

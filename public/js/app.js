@@ -322,3 +322,23 @@
     refreshUi();
   }
 })();
+
+// ---------- Light / dark mode (per device) ----------
+(() => {
+  const root = document.documentElement;
+  const KEY = 'jlf_mode';
+  const systemDark = () => matchMedia('(prefers-color-scheme: dark)').matches;
+  const get = () => { try { return localStorage.getItem(KEY) || 'auto'; } catch { return 'auto'; } };
+  const apply = (mode) => {
+    try { if (mode === 'auto') localStorage.removeItem(KEY); else localStorage.setItem(KEY, mode); } catch { /* private mode */ }
+    if (mode === 'auto') root.removeAttribute('data-mode'); else root.setAttribute('data-mode', mode);
+    document.querySelectorAll('[data-mode-set]').forEach((b) => b.classList.toggle('on', b.dataset.modeSet === mode));
+  };
+  document.querySelectorAll('[data-mode-toggle]').forEach((b) => b.addEventListener('click', () => {
+    const mode = get();
+    const isDark = mode === 'dark' || (mode === 'auto' && systemDark());
+    apply(isDark ? 'light' : 'dark');
+  }));
+  document.querySelectorAll('[data-mode-set]').forEach((b) => b.addEventListener('click', () => apply(b.dataset.modeSet)));
+  apply(get());
+})();

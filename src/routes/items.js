@@ -1,7 +1,8 @@
 const express = require('express');
 const config = require('../config');
-const { db, getCollectionPoints, transaction } = require('../db');
+const { db, getCollectionPoints } = require('../db');
 const auth = require('../auth');
+const storage = require('../storage');
 const { photos, removeFiles } = require('../upload');
 const { notifyUser, broadcastNewItem } = require('../notify');
 const { getItem } = require('../items');
@@ -26,10 +27,13 @@ function done(req, res, url, msg) {
   res.redirect(url);
 }
 
-function loadItem(req, res, next) {
+async function loadItem(req, res, next) {
   if (!/^\d+$/.test(req.params.id)) return next('route');
-  const item = getItem(Number(req.params.id));
-  if (!item) return res.status(404).render('error', { title: 'Not found', message: 'This post does not exist any more.' });
+  const item = await getItem(Number(req.params.id));
+  if (!item) {
+    removeFiles(req.files || (req.file ? [req.file] : []));
+    return res.status(404).render('error', { title: 'Not found', message: 'This post does not exist any more.' });
+  }
   req.item = item;
   req.isOwner = item.user_id === req.user.id;
   req.isAdmin = req.user.role === 'admin';
@@ -43,30 +47,31 @@ function ownerOrAdmin(req, res, next) {
 
 // ---------- Report lost / found ----------
 
-function renderReport(res, type, form, error, status = 200) {
+async function renderReport(res, type, form, error, status = 200) {
   res.status(status).render('report', {
     title: type === 'lost' ? 'Report a lost item' : 'Report a found item',
     type,
     form,
     error,
     today: todayIST(),
-    collectionPoints: getCollectionPoints(),
+    collectionPoints: await getCollectionPoints(),
   });
 }
 
-router.get('/report/:type', auth.requireLogin, (req, res, next) => {
+router.get('/report/:type', auth.requireLogin, async (req, res, next) => {
   const { type } = req.params;
   if (type !== 'lost' && type !== 'found') return next();
-  renderReport(res, type, { event_date: todayIST(), handover: 'me' }, null);
+  await renderReport(res, type, { event_date: todayIST(), handover: 'me' }, null);
 });
 
-router.post('/report/:type', auth.requireLogin, photos('photos', config.MAX_PHOTOS), csrfAfterUpload, (req, res, next) => {
+router.post('/report/:type', auth.requireLogin, photos('photos', config.MAX_PHOTOS), csrfAfterUpload, async (req, res, next) => {
   const { type } = req.params;
+  const files = req.files || [];
   if (type !== 'lost' && type !== 'found') {
-    removeFiles(req.files);
+    removeFiles(files);
     return next();
   }
-  const points = getCollectionPoints();
+  const points = await getCollectionPoints();
   const form = {
     title: clean(req.body.title, 80),
     category: config.categories.includes(req.body.category) ? req.body.category : '',
@@ -77,9 +82,9 @@ router.post('/report/:type', auth.requireLogin, photos('photos', config.MAX_PHOT
     secret_detail: type === 'found' ? clean(req.body.secret_detail, 300) : '',
   };
   const fail = (msg) => {
-    removeFiles(req.files);
+    removeFiles(files);
     if (wantsJson(req)) return res.status(400).json({ error: msg });
-    renderReport(res, type, form, msg, 400);
+    return renderReport(res, type, form, msg, 400);
   };
 
   if (req.uploadError) return fail(req.uploadError);
@@ -88,29 +93,37 @@ router.post('/report/:type', auth.requireLogin, photos('photos', config.MAX_PHOT
   if (!form.location) return fail(type === 'lost' ? 'Where did you lose it (roughly)?' : 'Where did you find it?');
   if (form.event_date && form.event_date > todayIST()) return fail('The date cannot be in the future.');
 
-  const recent = db.prepare('SELECT COUNT(*) n FROM items WHERE user_id = ? AND created_at > ?').get(req.user.id, Date.now() - DAY).n;
+  const recent = (await db.get('SELECT COUNT(*) AS n FROM items WHERE user_id = ? AND created_at > ?', req.user.id, Date.now() - DAY)).n;
   if (recent >= config.MAX_POSTS_PER_DAY && req.user.role !== 'admin') return fail('You have posted a lot today. Please try again tomorrow.');
+
+  try {
+    await storage.persist(files);
+  } catch (err) {
+    console.error('[upload]', err);
+    return fail('Could not save the photos. Please try again.');
+  }
 
   const now = Date.now();
   const days = type === 'lost' ? config.LOST_EXPIRY_DAYS : config.FOUND_EXPIRY_DAYS;
-  const id = transaction(() => {
-    const { lastInsertRowid } = db.prepare(`
+  const id = await db.tx(async (t) => {
+    const itemId = await t.insert(`
       INSERT INTO items (type, title, category, description, location, event_date, secret_detail, handover,
                          user_id, created_at, updated_at, expires_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(type, form.title, form.category, form.description, form.location, form.event_date || null,
-      form.secret_detail || null, form.handover, req.user.id, now, now, now + days * DAY);
-    for (const f of req.files || []) db.prepare('INSERT INTO photos (item_id, filename) VALUES (?, ?)').run(lastInsertRowid, f.filename);
-    return Number(lastInsertRowid);
+    `, type, form.title, form.category, form.description, form.location, form.event_date || null,
+    form.secret_detail || null, form.handover, req.user.id, now, now, now + days * DAY);
+    for (const f of files) await t.insert('INSERT INTO photos (item_id, filename) VALUES (?, ?)', itemId, f.filename);
+    return itemId;
   });
 
-  broadcastNewItem({ id, type, title: form.title, category: form.category, location: form.location, user_id: req.user.id, photo: req.files?.[0]?.filename });
+  broadcastNewItem({ id, type, title: form.title, category: form.category, location: form.location, user_id: req.user.id, photo: files[0]?.filename })
+    .catch((err) => console.warn('[push]', err.message));
   done(req, res, `/items/${id}`, 'Posted! Everyone with notifications on has been alerted. Share it on WhatsApp groups too.');
 });
 
 // ---------- Responses: "I found this" / "This is mine" ----------
 
-router.post('/items/:id/respond', auth.requireLogin, photos('photo', 1), csrfAfterUpload, loadItem, (req, res) => {
+router.post('/items/:id/respond', auth.requireLogin, photos('photo', 1), csrfAfterUpload, loadItem, async (req, res) => {
   const { item } = req;
   const files = req.file ? [req.file] : [];
   const back = `/items/${item.id}`;
@@ -123,31 +136,37 @@ router.post('/items/:id/respond', auth.requireLogin, photos('photo', 1), csrfAft
   if (req.uploadError) return fail(req.uploadError);
   if (req.isOwner) return fail('This is your own post.');
   if (item.status !== 'open') return fail('This post is no longer open.');
-  const existing = db.prepare("SELECT 1 FROM responses WHERE item_id = ? AND user_id = ? AND status != 'withdrawn'").get(item.id, req.user.id);
+  const existing = await db.get("SELECT 1 AS x FROM responses WHERE item_id = ? AND user_id = ? AND status != 'withdrawn'", item.id, req.user.id);
   if (existing) return fail('You have already responded to this post.');
   const message = clean(req.body.message, 1000);
   if (message.length < 5) return fail(item.type === 'lost' ? 'Please tell the owner where/when you found it.' : 'Please describe the item so the finder knows it is yours.');
 
-  db.prepare('INSERT INTO responses (item_id, user_id, message, photo, created_at) VALUES (?, ?, ?, ?, ?)')
-    .run(item.id, req.user.id, message, req.file?.filename || null, Date.now());
+  try {
+    await storage.persist(files);
+  } catch (err) {
+    console.error('[upload]', err);
+    return fail('Could not save the photo. Please try again.');
+  }
+  await db.insert('INSERT INTO responses (item_id, user_id, message, photo, created_at) VALUES (?, ?, ?, ?, ?)',
+    item.id, req.user.id, message, req.file?.filename || null, Date.now());
 
   const who = shortName(req.user.name);
-  notifyUser(item.user_id, item.type === 'lost'
+  await notifyUser(item.user_id, item.type === 'lost'
     ? `${who} says they found your "${item.title}". Open it to confirm and get their number.`
     : `${who} says the "${item.title}" you found belongs to them. Check their proof.`, back);
   done(req, res, back, 'Sent! You will be notified (and get their contact) once they confirm.');
 });
 
-function loadResponse(req, res, next) {
+async function loadResponse(req, res, next) {
   if (!/^\d+$/.test(req.params.rid)) return next('route');
-  const r = db.prepare('SELECT * FROM responses WHERE id = ?').get(Number(req.params.rid));
+  const r = await db.get('SELECT * FROM responses WHERE id = ?', Number(req.params.rid));
   if (!r) return res.status(404).render('error', { title: 'Not found', message: 'That response no longer exists.' });
   req.params.id = String(r.item_id);
   req.response = r;
-  loadItem(req, res, next);
+  return loadItem(req, res, next);
 }
 
-router.post('/responses/:rid/:action', auth.requireLogin, loadResponse, (req, res, next) => {
+router.post('/responses/:rid/:action', auth.requireLogin, loadResponse, async (req, res, next) => {
   const { item, response: r } = req;
   const { action } = req.params;
   const back = `/items/${item.id}`;
@@ -157,19 +176,19 @@ router.post('/responses/:rid/:action', auth.requireLogin, loadResponse, (req, re
     if (!req.isOwner) return res.status(403).render('error', { title: 'Not allowed', message: 'Only the person who posted this can do that.' });
     if (r.status !== 'pending') return done(req, res, back, 'That response was already handled.');
     if (action === 'accept') {
-      db.prepare("UPDATE responses SET status = 'accepted', decided_at = ? WHERE id = ?").run(now, r.id);
-      const owner = db.prepare('SELECT name, phone FROM users WHERE id = ?').get(item.user_id);
-      notifyUser(r.user_id, `${shortName(owner.name)} confirmed the match for "${item.title}". Their number is ${owner.phone}. Open the post to call or WhatsApp.`, back);
+      await db.run("UPDATE responses SET status = 'accepted', decided_at = ? WHERE id = ?", now, r.id);
+      const owner = await db.get('SELECT name, phone FROM users WHERE id = ?', item.user_id);
+      await notifyUser(r.user_id, `${shortName(owner.name)} confirmed the match for "${item.title}". Their number is ${owner.phone}. Open the post to call or WhatsApp.`, back);
       return done(req, res, back, 'Confirmed! You can now see each other\'s number. Mark the post as returned once you have it.');
     }
-    db.prepare("UPDATE responses SET status = 'rejected', decided_at = ? WHERE id = ?").run(now, r.id);
-    notifyUser(r.user_id, `Your response to "${item.title}" was declined by the poster.`, back);
+    await db.run("UPDATE responses SET status = 'rejected', decided_at = ? WHERE id = ?", now, r.id);
+    await notifyUser(r.user_id, `Your response to "${item.title}" was declined by the poster.`, back);
     return done(req, res, back, 'Response declined.');
   }
 
   if (action === 'withdraw') {
     if (r.user_id !== req.user.id) return res.status(403).render('error', { title: 'Not allowed', message: 'You can only withdraw your own response.' });
-    db.prepare("UPDATE responses SET status = 'withdrawn', decided_at = ? WHERE id = ?").run(now, r.id);
+    await db.run("UPDATE responses SET status = 'withdrawn', decided_at = ? WHERE id = ?", now, r.id);
     return done(req, res, back, 'Response withdrawn.');
   }
   next();
@@ -177,29 +196,29 @@ router.post('/responses/:rid/:action', auth.requireLogin, loadResponse, (req, re
 
 // ---------- Close / resolve / extend ----------
 
-router.post('/items/:id/resolve', auth.requireLogin, loadItem, ownerOrAdmin, (req, res) => {
+router.post('/items/:id/resolve', auth.requireLogin, loadItem, ownerOrAdmin, async (req, res) => {
   const { item } = req;
   if (item.status !== 'open') return done(req, res, `/items/${item.id}`, 'This post is already closed.');
   const now = Date.now();
-  db.prepare(`UPDATE items SET status = 'resolved', close_note = ?, closed_by = ?, closed_at = ?, updated_at = ? WHERE id = ?`)
-    .run(clean(req.body.note, 300) || null, req.isOwner ? 'owner' : 'admin', now, now, item.id);
-  for (const r of db.prepare("SELECT user_id FROM responses WHERE item_id = ? AND status = 'accepted'").all(item.id)) {
-    notifyUser(r.user_id, `"${item.title}" was marked as returned. Thank you for helping!`, `/items/${item.id}`);
+  await db.run("UPDATE items SET status = 'resolved', close_note = ?, closed_by = ?, closed_at = ?, updated_at = ? WHERE id = ?",
+    clean(req.body.note, 300) || null, req.isOwner ? 'owner' : 'admin', now, now, item.id);
+  for (const r of await db.all("SELECT user_id FROM responses WHERE item_id = ? AND status = 'accepted'", item.id)) {
+    await notifyUser(r.user_id, `"${item.title}" was marked as returned. Thank you for helping!`, `/items/${item.id}`);
   }
   done(req, res, `/items/${item.id}`, 'Marked as returned. Great news!');
 });
 
-router.post('/items/:id/close', auth.requireLogin, loadItem, ownerOrAdmin, (req, res) => {
+router.post('/items/:id/close', auth.requireLogin, loadItem, ownerOrAdmin, async (req, res) => {
   const { item } = req;
   if (item.status !== 'open') return done(req, res, `/items/${item.id}`, 'This post is already closed.');
   const now = Date.now();
-  db.prepare(`UPDATE items SET status = 'closed', close_note = ?, closed_by = ?, closed_at = ?, updated_at = ? WHERE id = ?`)
-    .run(clean(req.body.note, 300) || null, req.isOwner ? 'owner' : 'admin', now, now, item.id);
-  if (!req.isOwner) notifyUser(item.user_id, `An admin closed your post "${item.title}".`, `/items/${item.id}`);
+  await db.run("UPDATE items SET status = 'closed', close_note = ?, closed_by = ?, closed_at = ?, updated_at = ? WHERE id = ?",
+    clean(req.body.note, 300) || null, req.isOwner ? 'owner' : 'admin', now, now, item.id);
+  if (!req.isOwner) await notifyUser(item.user_id, `An admin closed your post "${item.title}".`, `/items/${item.id}`);
   done(req, res, `/items/${item.id}`, 'Post closed.');
 });
 
-router.post('/items/:id/extend', auth.requireLogin, loadItem, (req, res) => {
+router.post('/items/:id/extend', auth.requireLogin, loadItem, async (req, res) => {
   const { item } = req;
   const back = `/items/${item.id}`;
   if (!req.isOwner) return res.status(403).render('error', { title: 'Not allowed', message: 'Only the person who posted this can extend it.' });
@@ -207,9 +226,9 @@ router.post('/items/:id/extend', auth.requireLogin, loadItem, (req, res) => {
   if (item.extensions >= config.MAX_EXTENSIONS) return done(req, res, back, `A post can be extended at most ${config.MAX_EXTENSIONS} times. Please create a new post if needed.`);
   const now = Date.now();
   const days = item.type === 'lost' ? config.LOST_EXPIRY_DAYS : config.FOUND_EXPIRY_DAYS;
-  db.prepare(`UPDATE items SET status = 'open', expires_at = ?, extensions = extensions + 1, reminder_sent = 0,
-              closed_by = NULL, closed_at = NULL, updated_at = ? WHERE id = ?`)
-    .run(Math.max(item.expires_at, now) + days * DAY, now, item.id);
+  await db.run(`UPDATE items SET status = 'open', expires_at = ?, extensions = extensions + 1, reminder_sent = 0,
+                closed_by = NULL, closed_at = NULL, updated_at = ? WHERE id = ?`,
+  Math.max(item.expires_at, now) + days * DAY, now, item.id);
   done(req, res, back, `Extended by ${days} days.`);
 });
 

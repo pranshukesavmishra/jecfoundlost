@@ -13,16 +13,16 @@ router.get('/login', (req, res) => {
   res.render('login', { title: 'Sign in', next: safeNext(req.query.next), error: null, phone: '' });
 });
 
-router.post('/login', authLimit, (req, res) => {
+router.post('/login', authLimit, async (req, res) => {
   const next = safeNext(req.body.next);
   const phone = auth.normalizePhone(req.body.phone);
-  const user = phone && db.prepare('SELECT * FROM users WHERE phone = ?').get(phone);
+  const user = phone && await db.get('SELECT * FROM users WHERE phone = ?', phone);
   const fail = (error) => res.status(400).render('login', { title: 'Sign in', next, error, phone: req.body.phone || '' });
   if (!user || !auth.checkPassword(String(req.body.password || ''), user.password_hash)) {
     return fail('Wrong mobile number or password.');
   }
   if (user.is_banned) return fail('This account has been blocked by the admin.');
-  auth.startSession(res, user.id);
+  await auth.startSession(res, user.id);
   res.redirect(next);
 });
 
@@ -31,7 +31,7 @@ router.get('/register', (req, res) => {
   res.render('register', { title: 'Create account', next: safeNext(req.query.next), error: null, form: {} });
 });
 
-router.post('/register', authLimit, (req, res) => {
+router.post('/register', authLimit, async (req, res) => {
   const next = safeNext(req.body.next);
   const form = {
     name: clean(req.body.name, 80),
@@ -51,33 +51,33 @@ router.post('/register', authLimit, (req, res) => {
   if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) return fail('That e-mail address looks wrong.');
   if (password.length < 6) return fail('Password must be at least 6 characters.');
   if (password !== req.body.password2) return fail('Passwords do not match.');
-  if (db.prepare('SELECT 1 FROM users WHERE phone = ?').get(phone)) return fail('An account with this mobile number already exists. Please sign in.');
+  if (await db.get('SELECT 1 AS x FROM users WHERE phone = ?', phone)) return fail('An account with this mobile number already exists. Please sign in.');
 
-  const { lastInsertRowid } = db.prepare(`
+  const userId = await db.insert(`
     INSERT INTO users (name, phone, email, college_id, department, password_hash, created_at)
     VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).run(form.name, phone, form.email || null, form.college_id, form.department, auth.hashPassword(password), Date.now());
-  auth.startSession(res, Number(lastInsertRowid));
+  `, form.name, phone, form.email || null, form.college_id, form.department, auth.hashPassword(password), Date.now());
+  await auth.startSession(res, userId);
   res.flash('Welcome! Your account is ready. Tip: turn on notifications so you hear about new posts.');
   res.redirect(next);
 });
 
-router.post('/logout', (req, res) => {
-  auth.endSession(req, res);
+router.post('/logout', async (req, res) => {
+  await auth.endSession(req, res);
   res.redirect('/');
 });
 
-router.get('/me', auth.requireLogin, (req, res) => {
+router.get('/me', auth.requireLogin, async (req, res) => {
   res.render('me', {
     title: 'My posts',
-    items: userItems(req.user.id),
-    responses: userResponses(req.user.id),
+    items: await userItems(req.user.id),
+    responses: await userResponses(req.user.id),
   });
 });
 
-router.get('/me/notifications', auth.requireLogin, (req, res) => {
-  const notes = db.prepare('SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 100').all(req.user.id);
-  db.prepare('UPDATE notifications SET is_read = 1 WHERE user_id = ? AND is_read = 0').run(req.user.id);
+router.get('/me/notifications', auth.requireLogin, async (req, res) => {
+  const notes = await db.all('SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 100', req.user.id);
+  await db.run('UPDATE notifications SET is_read = 1 WHERE user_id = ? AND is_read = 0', req.user.id);
   res.locals.unread = 0;
   res.render('notifications', { title: 'Notifications', notes });
 });
@@ -90,7 +90,7 @@ router.get('/me/profile', auth.requireLogin, (req, res) => {
   res.render('profile', { title: 'My profile', error: null });
 });
 
-router.post('/me/profile', auth.requireLogin, (req, res) => {
+router.post('/me/profile', auth.requireLogin, async (req, res) => {
   const fail = (error) => res.status(400).render('profile', { title: 'My profile', error });
   const name = clean(req.body.name, 80);
   const email = clean(req.body.email, 120);
@@ -99,12 +99,12 @@ router.post('/me/profile', auth.requireLogin, (req, res) => {
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return fail('That e-mail address looks wrong.');
 
   if (req.body.new_password) {
-    const row = db.prepare('SELECT password_hash FROM users WHERE id = ?').get(req.user.id);
+    const row = await db.get('SELECT password_hash FROM users WHERE id = ?', req.user.id);
     if (!auth.checkPassword(String(req.body.current_password || ''), row.password_hash)) return fail('Current password is wrong.');
     if (String(req.body.new_password).length < 6) return fail('New password must be at least 6 characters.');
-    db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(auth.hashPassword(String(req.body.new_password)), req.user.id);
+    await db.run('UPDATE users SET password_hash = ? WHERE id = ?', auth.hashPassword(String(req.body.new_password)), req.user.id);
   }
-  db.prepare('UPDATE users SET name = ?, email = ?, department = ? WHERE id = ?').run(name, email || null, department, req.user.id);
+  await db.run('UPDATE users SET name = ?, email = ?, department = ? WHERE id = ?', name, email || null, department, req.user.id);
   res.flash('Profile saved.');
   res.redirect('/me/profile');
 });

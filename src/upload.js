@@ -3,12 +3,13 @@ const path = require('path');
 const crypto = require('crypto');
 const multer = require('multer');
 const config = require('./config');
+const { INCOMING_DIR } = require('./storage');
 
 const EXT = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp', 'image/gif': '.gif' };
 
 const upload = multer({
   storage: multer.diskStorage({
-    destination: config.UPLOAD_DIR,
+    destination: INCOMING_DIR,
     filename: (req, file, cb) => cb(null, crypto.randomBytes(16).toString('hex') + EXT[file.mimetype]),
   }),
   limits: { fileSize: config.MAX_PHOTO_MB * 1024 * 1024, files: config.MAX_PHOTOS, fields: 30 },
@@ -32,8 +33,9 @@ function looksLikeImage(file) {
     || buf.toString('ascii', 0, 3) === 'GIF';
 }
 
+/** Delete just-uploaded files that won't be kept (validation failed etc.). */
 function removeFiles(files) {
-  for (const f of files || []) fs.rm(path.join(config.UPLOAD_DIR, path.basename(f.filename || f)), { force: true }, () => {});
+  for (const f of files || []) fs.rm(f.path || path.join(INCOMING_DIR, path.basename(f.filename)), { force: true }, () => {});
 }
 
 /**

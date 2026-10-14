@@ -2,8 +2,10 @@ const path = require('path');
 const express = require('express');
 const cookieParser = require('cookie-parser');
 const config = require('./config');
-require('./db');
+const { db } = require('./db');
 const auth = require('./auth');
+const storage = require('./storage');
+const { initPush } = require('./notify');
 const helpers = require('./helpers');
 const { startJobs } = require('./jobs');
 
@@ -28,12 +30,21 @@ app.get('/sw.js', (req, res) => {
   res.set('Cache-Control', 'no-cache');
   res.sendFile(path.join(config.ROOT, 'public', 'sw.js'));
 });
+app.get('/theme.css', (req, res) => {
+  res.type('css').set('Cache-Control', config.IS_PROD ? 'public, max-age=3600' : 'no-cache').send(require('./theme').css);
+});
 app.use(express.static(path.join(config.ROOT, 'public'), { maxAge: config.IS_PROD ? '1d' : 0 }));
-app.use('/uploads', express.static(config.UPLOAD_DIR, {
-  maxAge: '30d',
-  immutable: true,
-  setHeaders: (res) => res.set('Content-Security-Policy', "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'"),
-}));
+app.use('/uploads', storage.serve());
+
+// For uptime pings and the host's health check.
+app.get('/healthz', async (req, res) => {
+  try {
+    await db.get('SELECT 1 AS ok');
+    res.set('Cache-Control', 'no-store').json({ ok: true });
+  } catch {
+    res.status(503).json({ ok: false });
+  }
+});
 
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: false, limit: '100kb' }));
@@ -56,15 +67,30 @@ app.use((req, res) => {
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
   console.error(err);
-  res.status(500).render('error', { title: 'Something went wrong', message: 'Please try again in a moment.' });
+  res.status(500);
+  // If the failure happened before page data was loaded (e.g. database down), send plain text.
+  if (!res.locals.site) return res.type('text').send('Something went wrong. Please try again in a moment.');
+  res.render('error', { title: 'Something went wrong', message: 'Please try again in a moment.' });
 });
 
+/** Connect to the database, create tables, admin account and push keys. */
+async function init() {
+  await db.ready;
+  await initPush();
+  await auth.ensureAdmin();
+}
+
 if (require.main === module) {
-  auth.ensureAdmin();
-  startJobs();
-  app.listen(config.PORT, () => {
-    console.log(`${config.site.name} running on http://localhost:${config.PORT}`);
+  init().then(() => {
+    startJobs();
+    app.listen(config.PORT, () => {
+      console.log(`${config.site.name} running on http://localhost:${config.PORT} (${db.kind === 'pg' ? 'Postgres' : 'SQLite'})`);
+    });
+  }).catch((err) => {
+    console.error('Startup failed:', err.message);
+    process.exit(1);
   });
 }
 
 module.exports = app;
+module.exports.init = init;

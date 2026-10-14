@@ -82,7 +82,7 @@
     </div>
 
     <div class="cat-scroll" role="list">
-      <a class="cat <%= !filters.category ? 'active' : '' %>" style="--c: var(--primary)" href="<%= link({ category: '', page: '' }) %>"><span class="ico"><%- icon('layout-grid') %></span>All items</a>
+      <a class="cat all <%= !filters.category ? 'active' : '' %>" style="--c: var(--primary)" href="<%= link({ category: '', page: '' }) %>"><span class="ico"><%- icon('layout-grid') %></span>All items</a>
       <% config.categoryList.forEach((c) => { %>
         <a class="cat <%= filters.category === c.name ? 'active' : '' %>" style="--c: <%= c.color %>" href="<%= link({ category: c.name, page: '' }) %>"><span class="ico"><%- icon(c.icon) %></span><%= c.short %></a>
       <% }) %>

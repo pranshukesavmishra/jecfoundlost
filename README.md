@@ -21,6 +21,16 @@ See [`docs/PLAN.md`](docs/PLAN.md) for the full design.
 - Admin panel: close, reopen and delete posts; block users; reset passwords; promote admins; edit collection points; see stats.
 - Premium, mobile-first design: app-style bottom bar with a quick "+" button, category icons, status tracker on every post, toasts, smooth animations, and automatic dark mode. Can be installed as an app (PWA).
 
+## Deploy (free)
+
+👉 **Follow [`docs/DEPLOY.md`](docs/DEPLOY.md)**: Supabase (database + photos) + Render (website), ₹0/month, about 15 minutes.
+
+## Themes
+
+- **Admin → Settings → Colour theme** switches the whole site's colours instantly (7 built-in themes, including *JEC Maroon* and *Mechatronics Violet*).
+- Everyone can switch **light / dark** with the moon/sun button in the header (or Auto in their profile).
+- To add a theme, copy a line in the `themes` list in `src/config.js` and change the colours.
+
 ## Run it locally
 
 Requires **Node.js 22.13 or newer**. There is nothing else to install: the database is SQLite, which is built into Node.
@@ -29,7 +39,8 @@ Requires **Node.js 22.13 or newer**. There is nothing else to install: the datab
 npm install
 cp .env.example .env        # then edit ADMIN_PHONE / ADMIN_PASSWORD
 npm start                   # http://localhost:3000
-npm test                    # end-to-end tests
+npm test                    # end-to-end tests (SQLite)
+TEST_DATABASE_URL=postgres://… npm test   # same tests against Postgres
 ```
 
 Sign in with `ADMIN_PHONE` / `ADMIN_PASSWORD` to get the **Admin** menu.
@@ -65,11 +76,13 @@ lostfound.yourdomain.in {
 
 Without Docker, use `npm ci --omit=dev && npm start`, run under `pm2` or systemd.
 
-### Option B: Railway / Render / Fly.io
+### Option B: Render + Supabase (free)
 
-1. Create a new service from this GitHub repo. The included `Dockerfile` is detected.
-2. **Add a persistent volume / disk mounted at `/app/data`.** Without it, posts and photos are lost on every redeploy.
-3. Set the environment variables: `BASE_URL`, `TRUST_PROXY=1`, `ADMIN_PHONE`, `ADMIN_PASSWORD`.
+See [`docs/DEPLOY.md`](docs/DEPLOY.md). Uses `render.yaml` and a Supabase `DATABASE_URL`, so no disk is needed.
+
+### Option C: Railway / Fly.io with a volume
+
+Deploy the `Dockerfile`, mount a persistent volume at `/app/data` (or set `DATABASE_URL`), and set `TRUST_PROXY=1`, `ADMIN_PHONE`, `ADMIN_PASSWORD`.
 
 ### Settings (environment variables)
 
@@ -78,7 +91,9 @@ Without Docker, use `npm ci --omit=dev && npm start`, run under `pm2` or systemd
 | `PORT` | `3000` | HTTP port |
 | `BASE_URL` | — | Public URL, e.g. `https://lostfound.jec.ac.in`. Used for share links; `https://` turns on secure cookies |
 | `TRUST_PROXY` | off | Set to `1` behind Nginx or a PaaS |
-| `DATA_DIR` | `./data` | Where the database and photos are kept |
+| `DATABASE_URL` | — | Postgres connection string (e.g. Supabase). When set, data **and photos** go to Postgres; otherwise a local SQLite file is used |
+| `DATA_DIR` | `./data` | Where the SQLite database and photos are kept (when `DATABASE_URL` is not set) |
+| `PHOTO_RETENTION_DAYS` | `60` | Photos of posts closed longer ago than this are deleted to save space (`0` = keep forever) |
 | `ADMIN_PHONE`, `ADMIN_PASSWORD`, `ADMIN_NAME` | — | Admin account, created or updated on every start |
 | `LOST_EXPIRY_DAYS` | `15` | Lost posts close after this many days |
 | `FOUND_EXPIRY_DAYS` | `30` | Found posts close after this many days |

@@ -2,24 +2,25 @@ const webpush = require('web-push');
 const { db, getSetting, setSetting } = require('./db');
 const config = require('./config');
 
+let publicKey = null;
+
 // VAPID keys identify this server to browser push services. Generated once, kept in the DB.
-function vapidKeys() {
-  let pub = process.env.VAPID_PUBLIC_KEY || getSetting('vapid_public');
-  let priv = process.env.VAPID_PRIVATE_KEY || getSetting('vapid_private');
+async function initPush() {
+  let pub = process.env.VAPID_PUBLIC_KEY || await getSetting('vapid_public');
+  let priv = process.env.VAPID_PRIVATE_KEY || await getSetting('vapid_private');
   if (!pub || !priv) {
     const keys = webpush.generateVAPIDKeys();
     pub = keys.publicKey;
     priv = keys.privateKey;
-    setSetting('vapid_public', pub);
-    setSetting('vapid_private', priv);
+    await setSetting('vapid_public', pub);
+    await setSetting('vapid_private', priv);
   }
-  return { publicKey: pub, privateKey: priv };
+  webpush.setVapidDetails(config.VAPID_SUBJECT, pub, priv);
+  publicKey = pub;
 }
 
-const keys = vapidKeys();
-webpush.setVapidDetails(config.VAPID_SUBJECT, keys.publicKey, keys.privateKey);
-
 async function sendPush(subs, payload) {
+  if (!publicKey) return;
   const body = JSON.stringify(payload);
   await Promise.all(subs.map(async (s) => {
     try {
@@ -27,7 +28,7 @@ async function sendPush(subs, payload) {
     } catch (err) {
       // 404 / 410 = the browser unsubscribed; forget it.
       if (err.statusCode === 404 || err.statusCode === 410) {
-        db.prepare('DELETE FROM push_subscriptions WHERE id = ?').run(s.id);
+        await db.run('DELETE FROM push_subscriptions WHERE id = ?', s.id).catch(() => {});
       } else {
         console.warn('[push] failed:', err.statusCode || err.message);
       }
@@ -36,18 +37,19 @@ async function sendPush(subs, payload) {
 }
 
 /** Personal notification: in-site bell + push to that user's devices. */
-function notifyUser(userId, text, link) {
-  db.prepare('INSERT INTO notifications (user_id, text, link, created_at) VALUES (?, ?, ?, ?)')
-    .run(userId, text, link || null, Date.now());
-  const subs = db.prepare('SELECT * FROM push_subscriptions WHERE user_id = ?').all(userId);
+async function notifyUser(userId, text, link) {
+  await db.insert('INSERT INTO notifications (user_id, text, link, created_at) VALUES (?, ?, ?, ?)',
+    userId, text, link || null, Date.now());
+  const subs = await db.all('SELECT * FROM push_subscriptions WHERE user_id = ?', userId);
   sendPush(subs, { title: config.site.name, body: text, url: link || '/' }).catch(() => {});
 }
 
 /** Broadcast a new post to everyone who opted in to "all new posts" (except the poster). */
-function broadcastNewItem(item) {
-  const subs = db.prepare(
+async function broadcastNewItem(item) {
+  const subs = await db.all(
     "SELECT * FROM push_subscriptions WHERE scope = 'all' AND (user_id IS NULL OR user_id != ?)",
-  ).all(item.user_id);
+    item.user_id,
+  );
   const label = item.type === 'lost' ? 'LOST' : 'FOUND';
   const where = item.location ? ` · ${item.location}` : '';
   sendPush(subs, {
@@ -58,4 +60,4 @@ function broadcastNewItem(item) {
   }).catch(() => {});
 }
 
-module.exports = { publicKey: keys.publicKey, notifyUser, broadcastNewItem };
+module.exports = { initPush, getPublicKey: () => publicKey, notifyUser, broadcastNewItem };

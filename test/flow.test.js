@@ -8,11 +8,13 @@ const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'jlf-test-'));
 process.env.DATA_DIR = tmp;
 process.env.ADMIN_PHONE = '9000000001';
 process.env.ADMIN_PASSWORD = 'adminpass';
+// Run the same suite against Postgres with: TEST_DATABASE_URL=postgres://… npm test
+if (process.env.TEST_DATABASE_URL) process.env.DATABASE_URL = process.env.TEST_DATABASE_URL;
 
-const app = require('../src/server');
-const { ensureAdmin } = require('../src/auth');
-const { runExpiry } = require('../src/jobs');
-const { db } = require('../src/db');
+let app;
+let runExpiry;
+let prunePhotos;
+let db;
 
 let server;
 let base;
@@ -69,13 +71,25 @@ async function register(c, name, phone) {
 }
 
 before(async () => {
-  ensureAdmin();
+  if (process.env.DATABASE_URL) {
+    // Start from an empty database.
+    const { Client } = require('pg');
+    const c = new Client({ connectionString: process.env.DATABASE_URL });
+    await c.connect();
+    await c.query('DROP SCHEMA public CASCADE; CREATE SCHEMA public;');
+    await c.end();
+  }
+  app = require('../src/server');
+  ({ runExpiry, prunePhotos } = require('../src/jobs'));
+  ({ db } = require('../src/db'));
+  await app.init();
   await new Promise((resolve) => { server = app.listen(0, resolve); });
   base = `http://127.0.0.1:${server.address().port}`;
 });
 
-after(() => {
+after(async () => {
   server.close();
+  await db.close();
   fs.rmSync(tmp, { recursive: true, force: true });
 });
 
@@ -139,7 +153,7 @@ test('lost item: post, respond, confirm, phone sharing, resolve', async () => {
   assert.equal(res.status, 302);
   const after = await visitor.get(redirect);
   assert.match(after.text, /Returned to its owner/);
-  assert.equal(db.prepare('SELECT status FROM items WHERE id = ?').get(id).status, 'resolved');
+  assert.equal((await db.get('SELECT status FROM items WHERE id = ?', id)).status, 'resolved');
   assert.match((await finder.get('/me/notifications')).text, /marked as returned/);
 });
 
@@ -187,19 +201,19 @@ test('expiry: reminder, auto-close, extend, admin actions', async () => {
   const DAY = 86400000;
 
   // 1 day before expiry -> reminder
-  db.prepare('UPDATE items SET expires_at = ? WHERE id = ?').run(Date.now() + DAY, id);
-  runExpiry();
+  await db.run('UPDATE items SET expires_at = ? WHERE id = ?', Date.now() + DAY, id);
+  await runExpiry();
   assert.match((await c.get('/me/notifications')).text, /will close in/);
 
   // past expiry -> expired
-  db.prepare('UPDATE items SET expires_at = ? WHERE id = ?').run(Date.now() - 1000, id);
-  runExpiry();
-  assert.equal(db.prepare('SELECT status FROM items WHERE id = ?').get(id).status, 'expired');
+  await db.run('UPDATE items SET expires_at = ? WHERE id = ?', Date.now() - 1000, id);
+  await runExpiry();
+  assert.equal((await db.get('SELECT status FROM items WHERE id = ?', id)).status, 'expired');
   await c.get(url);
 
   // owner reopens with an extension
   await c.post(`${url}/extend`, { form: {} });
-  const row = db.prepare('SELECT status, extensions, expires_at FROM items WHERE id = ?').get(id);
+  const row = (await db.get('SELECT status, extensions, expires_at FROM items WHERE id = ?', id));
   assert.equal(row.status, 'open');
   assert.equal(row.extensions, 1);
   assert.ok(row.expires_at > Date.now() + 14 * DAY);
@@ -213,13 +227,13 @@ test('expiry: reminder, auto-close, extend, admin actions', async () => {
   assert.equal(dash.status, 200);
   assert.match(dash.text, /Red umbrella/);
   await admin.post(`/admin/items/${id}/close`, { form: {} });
-  assert.equal(db.prepare('SELECT status FROM items WHERE id = ?').get(id).status, 'closed');
+  assert.equal((await db.get('SELECT status FROM items WHERE id = ?', id)).status, 'closed');
   await admin.get('/admin');
   await admin.post(`/admin/items/${id}/delete`, { form: {} });
-  assert.equal(db.prepare('SELECT COUNT(*) n FROM items WHERE id = ?').get(id).n, 0);
+  assert.equal((await db.get('SELECT COUNT(*) AS n FROM items WHERE id = ?', id)).n, 0);
 
   // admin blocks user -> user is signed out
-  const uid = db.prepare("SELECT id FROM users WHERE phone = '9866666666'").get().id;
+  const uid = (await db.get("SELECT id FROM users WHERE phone = '9866666666'")).id;
   await admin.get('/admin/users');
   await admin.post(`/admin/users/${uid}/ban`, { form: {} });
   assert.equal((await c.get('/me')).status, 302);
@@ -234,5 +248,43 @@ test('push subscription endpoints', async () => {
   const s = await c.post('/push/status', { json: { endpoint: sub.endpoint } });
   assert.match(s.text, /"subscribed":true/);
   await c.post('/push/unsubscribe', { json: { endpoint: sub.endpoint } });
-  assert.equal(db.prepare('SELECT COUNT(*) n FROM push_subscriptions').get().n, 0);
+  assert.equal((await db.get('SELECT COUNT(*) AS n FROM push_subscriptions')).n, 0);
+});
+
+test('photos are stored, served and cleaned up', async () => {
+  const c = client();
+  await register(c, 'Photo Tester', '9877777777');
+  const r = await c.post('/report/found', { multipart: { title: 'Blue umbrella', category: 'Other', location: 'Library', photos: JPEG } });
+  const url = JSON.parse(r.text).redirect;
+  const id = Number(url.split('/').pop());
+  const { filename } = await db.get('SELECT filename FROM photos WHERE item_id = ?', id);
+  const img = await fetch(`${base}/uploads/${filename}`);
+  assert.equal(img.status, 200);
+  assert.equal(img.headers.get('content-type'), 'image/jpeg');
+  assert.ok(Buffer.from(await img.arrayBuffer()).equals(JPEG));
+  assert.equal((await fetch(`${base}/uploads/../server.js`)).status, 404);
+
+  // Closed long ago -> photo pruned, post text kept
+  await db.run("UPDATE items SET status = 'resolved', closed_at = ? WHERE id = ?", Date.now() - 400 * 86400000, id);
+  assert.ok((await prunePhotos()) >= 1);
+  assert.equal((await db.get('SELECT COUNT(*) AS n FROM photos WHERE item_id = ?', id)).n, 0);
+  assert.equal((await fetch(`${base}/uploads/${filename}`)).status, 404);
+  assert.equal((await c.get(url)).status, 200);
+});
+
+test('admin can switch the colour theme; health check works', async () => {
+  const visitor = client();
+  assert.match((await visitor.get('/')).text, /data-theme="royal"/);
+  const admin = client();
+  await admin.get('/login');
+  await admin.post('/login', { form: { phone: '9000000001', password: 'adminpass', next: '/admin/settings' } });
+  const settings = await admin.get('/admin/settings');
+  assert.match(settings.text, /JEC Maroon/);
+  await admin.post('/admin/theme', { form: { theme: 'maroon' } });
+  assert.match((await visitor.get('/')).text, /data-theme="maroon"/);
+  await admin.post('/admin/theme', { form: { theme: 'nope' } });
+  assert.match((await visitor.get('/')).text, /data-theme="maroon"/);
+  const h = await fetch(`${base}/healthz`);
+  assert.equal(h.status, 200);
+  assert.deepEqual(await h.json(), { ok: true });
 });

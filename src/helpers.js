@@ -1,6 +1,7 @@
 const config = require('./config');
-const { db } = require('./db');
+const { db, getTheme } = require('./db');
 const { icon } = require('./icons');
+const { version: themeCssVersion } = require('./theme');
 
 const MIN = 60 * 1000;
 const HOUR = 60 * MIN;
@@ -52,8 +53,11 @@ function avatarColor(name) {
 
 const STATUS_LABEL = { open: 'Open', resolved: 'Returned', closed: 'Closed', expired: 'Expired' };
 
-function locals(req, res, next) {
+async function locals(req, res, next) {
+  const themeId = await getTheme();
   Object.assign(res.locals, {
+    theme: config.themes.find((t) => t.id === themeId),
+    themeCssVersion,
     site: config.site,
     config,
     timeAgo,
@@ -70,7 +74,7 @@ function locals(req, res, next) {
     path: req.path,
     title: '',
     unread: req.user
-      ? db.prepare('SELECT COUNT(*) n FROM notifications WHERE user_id = ? AND is_read = 0').get(req.user.id).n
+      ? (await db.get('SELECT COUNT(*) AS n FROM notifications WHERE user_id = ? AND is_read = 0', req.user.id)).n
       : 0,
     flash: req.cookies.jlf_flash ? String(req.cookies.jlf_flash).slice(0, 300) : null,
   });

@@ -1,18 +1,19 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="<%= theme.id %>">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title><%= title ? `${title} · ${site.name}` : `${site.name} · ${site.college}` %></title>
   <meta name="description" content="Lost something at <%= site.college %>? Found something? Post it here so the whole campus can help. Powered by the <%= site.poweredBy %>.">
-  <meta name="theme-color" content="#f5f6fa" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#070b18" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="<%= theme.hero %>">
+  <script>try{var m=localStorage.getItem('jlf_mode');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-mode',m)}catch(e){}</script>
   <meta name="csrf-token" content="<%= csrf %>">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="<%= site.logo %>">
   <link rel="apple-touch-icon" href="/img/icon-192.png">
   <link rel="preload" href="/fonts/plus-jakarta-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="/css/style.css?v=6">
+  <link rel="stylesheet" href="/css/style.css?v=7">
+  <link rel="stylesheet" href="/theme.css?v=<%= themeCssVersion %>">
 </head>
 <body data-logged-in="<%= user ? '1' : '' %>">
 <header class="site-header">
@@ -32,6 +33,9 @@
     </nav>
 
     <div class="header-actions">
+      <button type="button" class="icon-btn" data-mode-toggle aria-label="Switch light / dark mode" title="Light / dark mode">
+        <span class="when-light"><%- icon('moon') %></span><span class="when-dark"><%- icon('sun') %></span>
+      </button>
       <% if (user) { %>
         <a class="icon-btn" href="/me/notifications" aria-label="Notifications">
           <%- icon('bell') %>

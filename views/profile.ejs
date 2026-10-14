@@ -7,6 +7,15 @@
   <% if (error) { %><div class="alert alert-error" role="alert" style="margin-bottom:16px"><%- icon('circle-alert') %><span><%= error %></span></div><% } %>
 
   <div class="panel" style="margin-bottom:16px">
+    <div class="panel-title"><span class="step-num"><%- icon('sun-moon') %></span><div><h3>Appearance</h3><p>Saved on this device</p></div></div>
+    <div class="mode-switch" role="group" aria-label="Appearance">
+      <button type="button" data-mode-set="auto"><%- icon('monitor-smartphone') %> Auto</button>
+      <button type="button" data-mode-set="light"><%- icon('sun') %> Light</button>
+      <button type="button" data-mode-set="dark"><%- icon('moon') %> Dark</button>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-bottom:16px">
     <div class="panel-title"><span class="step-num"><%- icon('bell-ring') %></span><div><h3>Alerts on this device</h3><p data-push-status>Checking…</p></div></div>
     <div class="row">
       <button class="btn btn-primary btn-sm" data-push-enable data-scope="all"><%- icon('bell-ring') %> Every new post</button>

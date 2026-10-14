@@ -5,7 +5,7 @@ const { listItems, getItem, getResponses, stats } = require('../items');
 
 const router = express.Router();
 
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   const filters = {
     q: String(req.query.q || '').slice(0, 100),
     type: req.query.type || '',
@@ -13,19 +13,19 @@ router.get('/', (req, res) => {
     status: ['open', 'resolved'].includes(req.query.status) ? req.query.status : 'open',
     page: req.query.page,
   };
-  const result = listItems(filters);
-  res.render('home', { title: '', filters, ...result, stats: stats() });
+  const result = await listItems(filters);
+  res.render('home', { title: '', filters, ...result, stats: await stats() });
 });
 
-router.get('/items/:id', (req, res, next) => {
+router.get('/items/:id', async (req, res, next) => {
   if (!/^\d+$/.test(req.params.id)) return next();
-  const item = getItem(Number(req.params.id));
+  const item = await getItem(Number(req.params.id));
   if (!item) return next();
   const me = req.user;
   const isOwner = !!me && me.id === item.user_id;
   const isAdmin = !!me && me.role === 'admin';
 
-  let responses = getResponses(item.id);
+  let responses = await getResponses(item.id);
   const live = responses.filter((r) => r.status !== 'withdrawn' && r.status !== 'rejected');
   const progress = { responded: live.length > 0, matched: live.some((r) => r.status === 'accepted') };
   const myResponse = me ? responses.find((r) => r.user_id === me.id && r.status !== 'withdrawn') : null;
@@ -44,7 +44,7 @@ router.get('/items/:id', (req, res, next) => {
     canSeePosterPhone,
     progress,
     canRespond: !!me && !isOwner && item.status === 'open' && !myResponse,
-    collectionPoints: getCollectionPoints(),
+    collectionPoints: await getCollectionPoints(),
     shareUrl: `${config.BASE_URL || `${req.protocol}://${req.get('host')}`}/items/${item.id}`,
   });
 });

@@ -1,0 +1,33 @@
+# Render Blueprint: https://render.com/docs/blueprint-spec
+# Free web service. Data and photos live in Supabase Postgres (DATABASE_URL), so nothing is lost on redeploy.
+services:
+  - type: web
+    name: jec-lost-found
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: npm ci --omit=dev
+    startCommand: npm start
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      - key: TRUST_PROXY
+        value: "1"
+      # Supabase -> Connect -> "Session pooler" connection string (with your database password filled in)
+      - key: DATABASE_URL
+        sync: false
+      # First admin account (your 10-digit mobile number and a strong password)
+      - key: ADMIN_PHONE
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: LOST_EXPIRY_DAYS
+        value: "15"
+      - key: FOUND_EXPIRY_DAYS
+        value: "30"
+      - key: VAPID_SUBJECT
+        value: mailto:mechatronics@jecjabalpur.ac.in

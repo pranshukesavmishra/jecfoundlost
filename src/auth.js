@@ -28,17 +28,16 @@ function cookieOptions() {
   };
 }
 
-function startSession(res, userId) {
+async function startSession(res, userId) {
   const id = token();
-  db.prepare('INSERT INTO sessions (id, user_id, csrf, expires_at) VALUES (?, ?, ?, ?)').run(
-    id, userId, token(), Date.now() + SESSION_DAYS * 86400 * 1000,
-  );
+  await db.run('INSERT INTO sessions (id, user_id, csrf, expires_at) VALUES (?, ?, ?, ?)',
+    id, userId, token(), Date.now() + SESSION_DAYS * 86400 * 1000);
   res.cookie(COOKIE, id, cookieOptions());
 }
 
-function endSession(req, res) {
+async function endSession(req, res) {
   const id = req.cookies[COOKIE];
-  if (id) db.prepare('DELETE FROM sessions WHERE id = ?').run(id);
+  if (id) await db.run('DELETE FROM sessions WHERE id = ?', id);
   res.clearCookie(COOKIE);
 }
 
@@ -46,19 +45,19 @@ function endSession(req, res) {
 const ANON_COOKIE = 'jlf_anon';
 
 /** Loads req.user and sets res.locals.csrf for every request. */
-function loadUser(req, res, next) {
+async function loadUser(req, res, next) {
   req.user = null;
   const id = req.cookies[COOKIE];
   if (id) {
-    const row = db.prepare(`
+    const row = await db.get(`
       SELECT s.csrf, s.expires_at, u.* FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.id = ?
-    `).get(id);
+    `, id);
     if (row && row.expires_at > Date.now() && !row.is_banned) {
       req.csrf = row.csrf;
       delete row.password_hash;
       req.user = row;
     } else {
-      if (row) db.prepare('DELETE FROM sessions WHERE id = ?').run(id);
+      if (row) await db.run('DELETE FROM sessions WHERE id = ?', id);
       res.clearCookie(COOKIE);
     }
   }
@@ -126,27 +125,27 @@ function rateLimit({ windowMs, max, key = (req) => req.ip, message = 'Too many a
 }
 
 /** Creates or updates the admin account from ADMIN_PHONE / ADMIN_PASSWORD on startup. */
-function ensureAdmin() {
+async function ensureAdmin() {
   const phone = normalizePhone(config.ADMIN_PHONE);
   if (!phone || !config.ADMIN_PASSWORD) {
-    const admins = db.prepare("SELECT COUNT(*) n FROM users WHERE role = 'admin'").get().n;
+    const admins = (await db.get("SELECT COUNT(*) AS n FROM users WHERE role = 'admin'")).n;
     if (!admins) console.warn('[admin] No admin account. Set ADMIN_PHONE and ADMIN_PASSWORD to create one.');
     return;
   }
-  const existing = db.prepare('SELECT id FROM users WHERE phone = ?').get(phone);
+  const existing = await db.get('SELECT id FROM users WHERE phone = ?', phone);
   if (existing) {
-    db.prepare("UPDATE users SET role = 'admin', is_banned = 0, password_hash = ? WHERE id = ?")
-      .run(hashPassword(config.ADMIN_PASSWORD), existing.id);
+    await db.run("UPDATE users SET role = 'admin', is_banned = 0, password_hash = ? WHERE id = ?",
+      hashPassword(config.ADMIN_PASSWORD), existing.id);
   } else {
-    db.prepare(`INSERT INTO users (name, phone, department, password_hash, role, created_at)
-                VALUES (?, ?, 'Mechatronics Engineering', ?, 'admin', ?)`)
-      .run(config.ADMIN_NAME, phone, hashPassword(config.ADMIN_PASSWORD), Date.now());
+    await db.insert(`INSERT INTO users (name, phone, department, password_hash, role, created_at)
+                     VALUES (?, ?, 'Mechatronics Engineering', ?, 'admin', ?)`,
+    config.ADMIN_NAME, phone, hashPassword(config.ADMIN_PASSWORD), Date.now());
   }
   console.log(`[admin] Admin account ready for ${phone}`);
 }
 
-function cleanupSessions() {
-  db.prepare('DELETE FROM sessions WHERE expires_at < ?').run(Date.now());
+async function cleanupSessions() {
+  await db.run('DELETE FROM sessions WHERE expires_at < ?', Date.now());
 }
 
 module.exports = {
