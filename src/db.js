@@ -125,36 +125,56 @@ CREATE TABLE IF NOT EXISTS blobs (
 // ---------------------------------------------------------------- SQLite
 function sqliteAdapter(file) {
   const { DatabaseSync } = require('node:sqlite');
-  fs.mkdirSync(config.DATA_DIR, { recursive: true });
-  const conn = new DatabaseSync(file);
-  conn.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;');
-  conn.exec(schema('sqlite'));
+  fs.mkdirSync(require('path').dirname(file), { recursive: true });
+  let conn = null;
+  let cache = new Map();
+  let onWrite = () => {};
 
-  const cache = new Map();
   const stmt = (sql) => {
     let s = cache.get(sql);
     if (!s) { s = conn.prepare(sql); cache.set(sql, s); }
     return s;
   };
+  const write = (fn) => (...args) => {
+    const r = fn(...args);
+    onWrite();
+    return r;
+  };
   const api = {
     kind: 'sqlite',
+    file,
     get: async (sql, ...p) => stmt(sql).get(...p),
     all: async (sql, ...p) => stmt(sql).all(...p),
-    run: async (sql, ...p) => ({ changes: Number(stmt(sql).run(...p).changes) }),
-    insert: async (sql, ...p) => Number(stmt(sql).run(...p).lastInsertRowid),
+    run: async (sql, ...p) => write(() => ({ changes: Number(stmt(sql).run(...p).changes) }))(),
+    insert: async (sql, ...p) => write(() => Number(stmt(sql).run(...p).lastInsertRowid))(),
     // node:sqlite is synchronous, so a transaction can't interleave with other requests.
     tx: async (fn) => {
       conn.exec('BEGIN');
       try {
         const r = await fn(api);
         conn.exec('COMMIT');
+        onWrite();
         return r;
       } catch (err) {
         conn.exec('ROLLBACK');
         throw err;
       }
     },
-    close: async () => conn.close(),
+    close: async () => conn && conn.close(),
+    /** Open (or re-open) the database file. */
+    open() {
+      if (conn) conn.close();
+      cache = new Map();
+      conn = new DatabaseSync(file);
+      conn.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;');
+      conn.exec(schema('sqlite'));
+    },
+    /** Write a consistent copy of the whole database to `target`. */
+    snapshotTo(target) {
+      fs.rmSync(target, { force: true });
+      conn.prepare('VACUUM INTO ?').run(target);
+    },
+    setOnWrite(fn) { onWrite = fn; },
   };
   return api;
 }
@@ -226,7 +246,16 @@ const db = config.DATABASE_URL
   : sqliteAdapter(process.env.DB_FILE || config.DB_FILE);
 
 /** Must be awaited once before serving requests. */
-db.ready = (db.init ? db.init() : Promise.resolve()).then(() => db);
+db.ready = (async () => {
+  if (db.kind === 'pg') {
+    await db.init();
+  } else {
+    if (config.GCS_BUCKET) await require('./snapshot').restore(db);
+    db.open();
+    if (config.GCS_BUCKET) require('./snapshot').attach(db);
+  }
+  return db;
+})();
 
 // ---------------------------------------------------------------- settings helpers
 const settingsCache = new Map();

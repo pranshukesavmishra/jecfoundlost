@@ -46,6 +46,8 @@ app.get('/healthz', async (req, res) => {
   }
 });
 
+// Cloud Run: save the database to the bucket before answering requests that changed it.
+app.use(require('./snapshot').middleware);
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: false, limit: '100kb' }));
 app.use(express.json({ limit: '20kb' }));
@@ -81,10 +83,21 @@ async function init() {
 }
 
 if (require.main === module) {
+  // Docker / Cloud Run stop the app with SIGTERM: save pending data, then exit.
+  // (Node running as PID 1 in a container would otherwise ignore the signal.)
+  for (const sig of ['SIGTERM', 'SIGINT']) {
+    process.once(sig, () => {
+      require('./snapshot').flush().catch(() => {}).finally(() => process.exit(0));
+    });
+  }
+  if (process.env.K_SERVICE && !config.GCS_BUCKET && !config.DATABASE_URL) {
+    console.warn('[warning] Running on Cloud Run without GCS_BUCKET or DATABASE_URL: data will be lost on restart!');
+  }
   init().then(() => {
     startJobs();
     app.listen(config.PORT, () => {
-      console.log(`${config.site.name} running on http://localhost:${config.PORT} (${db.kind === 'pg' ? 'Postgres' : 'SQLite'})`);
+      const where = db.kind === 'pg' ? 'Postgres' : config.GCS_BUCKET ? `SQLite, saved to gs://${config.GCS_BUCKET}` : 'SQLite';
+      console.log(`${config.site.name} running on http://localhost:${config.PORT} (${where}; photos: ${storage.MODE})`);
     });
   }).catch((err) => {
     console.error('Startup failed:', err.message);

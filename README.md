@@ -21,9 +21,17 @@ See [`docs/PLAN.md`](docs/PLAN.md) for the full design.
 - Admin panel: close, reopen and delete posts; block users; reset passwords; promote admins; edit collection points; see stats.
 - Premium, mobile-first design: app-style bottom bar with a quick "+" button, category icons, status tracker on every post, toasts, smooth animations, and automatic dark mode. Can be installed as an app (PWA).
 
-## Deploy (free)
+## Deploy
 
-👉 **Follow [`docs/DEPLOY.md`](docs/DEPLOY.md)**: Supabase (database + photos) + Render (website), ₹0/month, about 15 minutes.
+| Where | Guide | Notes |
+|---|---|---|
+| **Google Cloud Run** (current) | [`docs/DEPLOY-GOOGLE.md`](docs/DEPLOY-GOOGLE.md) | One script in Cloud Shell; then every GitHub push auto-deploys. Data in a Cloud Storage bucket. |
+| Render + Supabase | [`docs/DEPLOY.md`](docs/DEPLOY.md) | ₹0/month, no card. Sleeps when idle. |
+| College server / VPS | below | `docker compose up -d` |
+
+[![Open in Cloud Shell](https://gstatic.com/cloudssh/images/open-btn.svg)](https://shell.cloud.google.com/cloudshell/editor?cloudshell_git_repo=https://github.com/pranshukesavmishra/jecfoundlost&cloudshell_tutorial=docs/DEPLOY-GOOGLE.md&show=terminal)
+
+Moving between them later is easy: `scripts/migrate-to-postgres.js` copies all data from SQLite into Postgres (Supabase).
 
 ## Themes
 
@@ -93,6 +101,7 @@ Deploy the `Dockerfile`, mount a persistent volume at `/app/data` (or set `DATAB
 | `TRUST_PROXY` | off | Set to `1` behind Nginx or a PaaS |
 | `DATABASE_URL` | — | Postgres connection string (e.g. Supabase). When set, data **and photos** go to Postgres; otherwise a local SQLite file is used |
 | `DATA_DIR` | `./data` | Where the SQLite database and photos are kept (when `DATABASE_URL` is not set) |
+| `GCS_BUCKET` | — | Google Cloud Storage bucket (Cloud Run). Photos go there; without `DATABASE_URL` the SQLite database is also saved there after every change |
 | `PHOTO_RETENTION_DAYS` | `60` | Photos of posts closed longer ago than this are deleted to save space (`0` = keep forever) |
 | `ADMIN_PHONE`, `ADMIN_PASSWORD`, `ADMIN_NAME` | — | Admin account, created or updated on every start |
 | `LOST_EXPIRY_DAYS` | `15` | Lost posts close after this many days |
@@ -118,14 +127,20 @@ tar czf jec-lostfound-backup.tgz data/
 src/
   server.js        app setup
   config.js        college name, categories, departments, places, limits
-  db.js            SQLite schema
+  db.js            database layer (SQLite or Postgres) + schema
+  storage.js       photo storage (disk, Postgres or Cloud Storage)
+  gcs.js           tiny Google Cloud Storage client
+  snapshot.js      saves/restores the SQLite file to Cloud Storage (Cloud Run)
+  theme.js         builds /theme.css from the themes in config.js
   auth.js          accounts, sessions, CSRF, rate limits
   notify.js        in-site + web-push notifications
   jobs.js          auto-expiry and reminders (every 15 min)
   routes/          public, account, items, push, admin
 views/             EJS pages
 public/            CSS, browser JS, service worker, icons
-test/              end-to-end tests (node --test)
+test/              end-to-end tests (node --test), incl. a simulated Cloud Run restart
+deploy/            google-cloud-run.sh (one-time Google Cloud setup)
+scripts/           migrate-to-postgres.js (SQLite -> Supabase)
 ```
 
 To change the college details, categories (with their icons and colours), departments or campus places, edit `src/config.js`.

@@ -23,9 +23,41 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Tests (SQLite)
+      - name: Tests (SQLite + simulated Cloud Run)
         run: npm test
       - name: Tests (Postgres)
         run: npm test
         env:
           TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/jlf
+
+  # Deploys to Google Cloud Run after the tests pass, once the GCP_* repository variables are set
+  # (printed by deploy/google-cloud-run.sh). Uses keyless Workload Identity Federation.
+  deploy-google:
+    needs: test
+    if: github.event_name == 'push' && github.ref_name == github.event.repository.default_branch && vars.GCP_WIF_PROVIDER != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    concurrency:
+      group: deploy-google
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SA }}
+      - uses: google-github-actions/setup-gcloud@v2
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy "${{ vars.GCP_SERVICE || 'jec-lost-found' }}" \
+            --source . \
+            --region "${{ vars.GCP_REGION || 'asia-south1' }}" \
+            --project "${{ vars.GCP_PROJECT_ID }}" \
+            --quiet
+      - name: Check the site responds
+        run: |
+          URL="$(gcloud run services describe "${{ vars.GCP_SERVICE || 'jec-lost-found' }}" --region "${{ vars.GCP_REGION || 'asia-south1' }}" --project "${{ vars.GCP_PROJECT_ID }}" --format='value(status.url)')"
+          curl -fsS --retry 5 --retry-delay 5 "$URL/healthz"
+          echo "Deployed: $URL"

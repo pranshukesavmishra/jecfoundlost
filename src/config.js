@@ -23,6 +23,9 @@ const config = {
   BASE_URL: (process.env.BASE_URL || process.env.RENDER_EXTERNAL_URL || '').replace(/\/$/, ''),
   // Postgres connection string (e.g. Supabase). When empty, a local SQLite file is used.
   DATABASE_URL: process.env.DATABASE_URL || '',
+  // Google Cloud Storage bucket (Cloud Run). Photos go here, and when no DATABASE_URL is set the
+  // SQLite database is restored from / saved to this bucket so nothing is lost when Cloud Run restarts.
+  GCS_BUCKET: process.env.GCS_BUCKET || '',
   // Photos of posts that closed this many days ago are deleted to save space (0 = keep forever).
   PHOTO_RETENTION_DAYS: int(process.env.PHOTO_RETENTION_DAYS, 60),
 

@@ -6,5 +6,7 @@ RUN npm ci --omit=dev
 COPY . .
 RUN mkdir -p /app/data
 VOLUME ["/app/data"]
-EXPOSE 3000
-CMD ["npm", "start"]
+EXPOSE 8080
+ENV PORT=8080
+# Run node directly (not via npm) so it receives SIGTERM and can save pending data before shutdown.
+CMD ["node", "--disable-warning=ExperimentalWarning", "src/server.js"]

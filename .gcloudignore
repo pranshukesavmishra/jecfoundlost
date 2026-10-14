@@ -1,0 +1,10 @@
+# Files not uploaded when deploying to Google Cloud Run (gcloud run deploy --source .)
+.git
+.github
+node_modules
+data
+test
+docs
+deploy
+.env
+*.log

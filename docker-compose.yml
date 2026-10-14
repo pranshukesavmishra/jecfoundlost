@@ -3,9 +3,10 @@ services:
     build: .
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "3000:8080"
     env_file: .env
     environment:
       DATA_DIR: /app/data
+      PORT: 8080
     volumes:
       - ./data:/app/data
