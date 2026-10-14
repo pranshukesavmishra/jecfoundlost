@@ -37,6 +37,19 @@ function shortName(name) {
   return `${parts[0]} ${parts[parts.length - 1][0].toUpperCase()}.`;
 }
 
+function initials(name) {
+  const parts = String(name || '?').trim().split(/\s+/);
+  return ((parts[0]?.[0] || '') + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
+}
+
+// Stable pleasant colour per person for avatar circles.
+const AVATAR_COLORS = ['#4f46e5', '#0891b2', '#059669', '#d97706', '#db2777', '#7c3aed', '#2563eb', '#0d9488'];
+function avatarColor(name) {
+  let h = 0;
+  for (const ch of String(name || '')) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return AVATAR_COLORS[h % AVATAR_COLORS.length];
+}
+
 const STATUS_LABEL = { open: 'Open', resolved: 'Returned', closed: 'Closed', expired: 'Expired' };
 
 function locals(req, res, next) {
@@ -50,6 +63,10 @@ function locals(req, res, next) {
     shortName,
     STATUS_LABEL,
     icon,
+    initials,
+    avatarColor,
+    cat: config.categoryMeta,
+    year: new Date().getFullYear(),
     path: req.path,
     title: '',
     unread: req.user

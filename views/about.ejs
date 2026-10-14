@@ -1,42 +1,43 @@
 <%- include('partials/head') %>
 <div class="container narrow">
-  <h1 style="margin:24px 0 8px">How <%= site.name %> works</h1>
-  <p class="muted">A simple, free lost-and-found board for everyone at <%= site.college %>, built and run by the <%= site.poweredBy %>.</p>
+  <div class="report-head">
+    <span class="kicker">The guide</span>
+    <h1>How <%= site.name %> works</h1>
+    <p>A free lost-and-found board for everyone at <%= site.college %>, built and run by the <%= site.poweredBy %>.</p>
+  </div>
 
-  <div class="panel stack">
-    <div>
-      <h2><span class="tag tag-lost">Lost</span> If you lost something</h2>
-      <ol>
-        <li>Tap <strong>I lost something</strong>, describe it and add a photo if you have one.</li>
-        <li>Everyone who has notifications on is alerted. Share the post on your class WhatsApp group too.</li>
-        <li>If someone has it, they tap <strong>I found this</strong>. You get a notification.</li>
-        <li>Tap <strong>Yes, that's mine</strong> and you'll both see each other's mobile number. Call or WhatsApp to meet.</li>
-        <li>Got it back? Tap <strong>I got it back</strong> to close the post.</li>
+  <div class="stack">
+    <section class="panel">
+      <div class="panel-title"><span class="menu-ico lost"><%- icon('scan-search') %></span><div><h3>If you lost something</h3><p>Let the whole campus look out for it</p></div></div>
+      <ol class="small" style="margin:0;padding-left:20px;display:grid;gap:8px;color:var(--text-2)">
+        <li>Tap <b>Report item → I lost something</b>, describe it and add a photo if you have one.</li>
+        <li>Everyone with alerts on is notified. Share the post on your class WhatsApp group too.</li>
+        <li>If someone has it, they tap <b>I found this</b> and you get a notification.</li>
+        <li>Tap <b>It's mine — share numbers</b>. You both see each other's mobile number, so call or WhatsApp to meet.</li>
+        <li>Got it back? Tap <b>I got it back!</b> to close the post.</li>
       </ol>
-    </div>
-    <div>
-      <h2><span class="tag tag-found">Found</span> If you found something</h2>
-      <ol>
-        <li>Tap <strong>I found something</strong>, take a photo, and say where it is: with you, or deposited at a collection point (e.g. the department office).</li>
-        <li>Add a <strong>secret detail</strong> that only the real owner would know. Only you and admins see it.</li>
-        <li>The owner taps <strong>This is mine</strong> and describes it. If it matches, confirm and numbers are shared.</li>
-        <li>Hand it over (ask to see their college ID), then mark it <strong>Returned</strong>.</li>
+    </section>
+
+    <section class="panel">
+      <div class="panel-title"><span class="menu-ico found"><%- icon('hand-heart') %></span><div><h3>If you found something</h3><p>Help it get back to its owner</p></div></div>
+      <ol class="small" style="margin:0;padding-left:20px;display:grid;gap:8px;color:var(--text-2)">
+        <li>Tap <b>Report item → I found something</b>, take a photo and say where it is now: with you, or deposited at a collection point.</li>
+        <li>Add a <b>secret detail</b> only the real owner would know. Only you and admins can see it.</li>
+        <li>The owner taps <b>This is mine</b> and describes it. If it matches, confirm, and numbers are shared.</li>
+        <li>Hand it over (ask to see their college ID), then mark it <b>Returned</b>.</li>
       </ol>
+    </section>
+
+    <div class="trust" style="margin-top:16px">
+      <div class="panel trust-item"><span class="t-ico"><%- icon('lock') %></span><div><b>Private by default</b><span>Numbers are only shown to the two people in a confirmed match.</span></div></div>
+      <div class="panel trust-item"><span class="t-ico"><%- icon('hourglass') %></span><div><b>Auto-close</b><span>Lost posts close after <%= config.LOST_EXPIRY_DAYS %> days, found posts after <%= config.FOUND_EXPIRY_DAYS %>. You get a reminder first and can extend <%= config.MAX_EXTENSIONS %>×.</span></div></div>
+      <div class="panel trust-item"><span class="t-ico"><%- icon('shield-check') %></span><div><b>Moderated</b><span>Admins can close or remove posts that break the rules. Never pay anyone to "return" an item.</span></div></div>
     </div>
-    <div>
-      <h2>Good to know</h2>
-      <ul>
-        <li><strong>Your number is private.</strong> It's only shown to the other person after a match is confirmed.</li>
-        <li><strong>Posts close automatically</strong>: lost posts after <%= config.LOST_EXPIRY_DAYS %> days, found posts after <%= config.FOUND_EXPIRY_DAYS %> days. You get a reminder before that and can extend <%= config.MAX_EXTENSIONS %> times.</li>
-        <li>You can close your own post any time. Admins can close or remove posts that break the rules.</li>
-        <li>Unclaimed found items should be deposited with the department office.</li>
-        <li>Never pay anyone to "return" an item. Report misuse to the admins.</li>
-      </ul>
-    </div>
-    <div>
-      <h2>Notifications on iPhone</h2>
-      <p class="small">Open this site in Safari, tap <em>Share → Add to Home Screen</em>, open it from the home screen and then turn on notifications.</p>
-    </div>
+
+    <section class="panel">
+      <div class="panel-title"><span class="step-num"><%- icon('smartphone') %></span><div><h3>Alerts on iPhone</h3><p>One-time setup</p></div></div>
+      <p class="small" style="margin:0;color:var(--text-2)">Open this site in Safari, tap <b>Share → Add to Home Screen</b>, open it from your home screen, then turn on alerts from your profile. On Android and laptops, just tap <b>Turn on alerts</b>.</p>
+    </section>
   </div>
 </div>
 <%- include('partials/foot') %>

@@ -26,6 +26,8 @@ router.get('/items/:id', (req, res, next) => {
   const isAdmin = !!me && me.role === 'admin';
 
   let responses = getResponses(item.id);
+  const live = responses.filter((r) => r.status !== 'withdrawn' && r.status !== 'rejected');
+  const progress = { responded: live.length > 0, matched: live.some((r) => r.status === 'accepted') };
   const myResponse = me ? responses.find((r) => r.user_id === me.id && r.status !== 'withdrawn') : null;
   if (!isOwner && !isAdmin) responses = myResponse ? [myResponse] : [];
 
@@ -40,6 +42,7 @@ router.get('/items/:id', (req, res, next) => {
     isOwner,
     isAdmin,
     canSeePosterPhone,
+    progress,
     canRespond: !!me && !isOwner && item.status === 'open' && !myResponse,
     collectionPoints: getCollectionPoints(),
     shareUrl: `${config.BASE_URL || `${req.protocol}://${req.get('host')}`}/items/${item.id}`,

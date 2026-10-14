@@ -1,83 +1,159 @@
 <%- include('partials/head') %>
+<%
+  const link = (o) => {
+    const p = new URLSearchParams();
+    const merged = { q: filters.q, category: filters.category, type: filters.type, status: filters.status, ...o };
+    for (const [k, v] of Object.entries(merged)) if (v && !(k === 'status' && v === 'open')) p.set(k, v);
+    const s = p.toString();
+    return s ? `/?${s}#browse` : '/#browse';
+  };
+  const tab = filters.status === 'resolved' ? 'resolved' : (filters.type || 'all');
+%>
 
-<section class="hero">
-  <div class="container">
-    <h1>Lost something on campus? Found something?</h1>
-    <p>Post it here and the whole of <%= site.college %> gets to see it. When there's a match, owner and finder get each other's number.</p>
-    <div class="actions">
-      <a class="btn btn-lost" href="/report/lost"><%- icon('search') %> I lost something</a>
-      <a class="btn btn-found" href="/report/found"><%- icon('hand') %> I found something</a>
-    </div>
-  </div>
-</section>
+<div class="container hero-wrap">
+  <section class="hero">
+    <div class="hero-grid">
+      <div>
+        <span class="eyebrow"><b>Campus</b> <%= site.college %></span>
+        <h1>Lost it? Found it?<br><span class="grad-text">Let's get it back home.</span></h1>
+        <p class="hero-sub">The lost &amp; found board for everyone at JEC. Post in under a minute, the whole campus gets notified, and owners &amp; finders connect privately.</p>
 
-<div class="container">
-  <div class="stats">
-    <div class="stat lost"><b><%= stats.open_lost || 0 %></b><span>Items being searched</span></div>
-    <div class="stat found"><b><%= stats.open_found || 0 %></b><span>Found, waiting for owner</span></div>
-    <div class="stat"><b><%= stats.returned || 0 %></b><span>Returned to owners</span></div>
-  </div>
+        <form class="hero-search" method="get" action="/" role="search">
+          <%- icon('search') %>
+          <input type="search" name="q" value="<%= filters.q %>" placeholder="Search calculator, ID card, keys…" aria-label="Search posts">
+          <button class="btn btn-primary"><span>Search</span><%- icon('arrow-right') %></button>
+        </form>
 
-  <div class="panel notify-banner hidden" id="notify-banner" style="margin-top:16px">
-    <div>
-      <strong>Get alerts for new lost &amp; found posts</strong>
-      <div class="muted small">We'll ping your phone or laptop the moment something is posted.</div>
-    </div>
-    <button class="btn btn-primary btn-sm" data-push-enable><%- icon('bell') %> Turn on notifications</button>
-  </div>
+        <div class="hero-cta">
+          <a class="btn btn-lg btn-glass" href="/report/lost"><%- icon('scan-search', 'lost') %> I lost something</a>
+          <a class="btn btn-lg btn-glass" href="/report/found"><%- icon('hand-heart', 'found') %> I found something</a>
+        </div>
 
-  <form class="filters" method="get" action="/" role="search">
-    <input type="search" name="q" value="<%= filters.q %>" placeholder="Search: calculator, ID card, library…" aria-label="Search">
-    <select name="category" aria-label="Category" onchange="this.form.submit()">
-      <option value="">All categories</option>
-      <% config.categories.forEach((c) => { %><option <%= filters.category === c ? 'selected' : '' %>><%= c %></option><% }) %>
-    </select>
-    <input type="hidden" name="type" value="<%= filters.type %>">
-    <input type="hidden" name="status" value="<%= filters.status %>">
-    <button class="btn btn-primary"><%- icon('search') %> Search</button>
-  </form>
+        <div class="hero-stats">
+          <div class="s-lost"><b data-count="<%= stats.open_lost || 0 %>"><%= stats.open_lost || 0 %></b><span>Being searched</span></div>
+          <div class="s-found"><b data-count="<%= stats.open_found || 0 %>"><%= stats.open_found || 0 %></b><span>Waiting for owner</span></div>
+          <div class="s-ret"><b data-count="<%= stats.returned || 0 %>"><%= stats.returned || 0 %></b><span>Returned home</span></div>
+        </div>
+      </div>
 
-  <%
-    const link = (o) => {
-      const p = new URLSearchParams();
-      const merged = { q: filters.q, category: filters.category, type: filters.type, status: filters.status, ...o };
-      for (const [k, v] of Object.entries(merged)) if (v && !(k === 'status' && v === 'open')) p.set(k, v);
-      const s = p.toString();
-      return s ? `/?${s}` : '/';
-    };
-  %>
-  <div class="chips">
-    <a class="chip <%= filters.status === 'open' && !filters.type ? 'active' : '' %>" href="<%= link({ type: '', status: 'open' }) %>">All open</a>
-    <a class="chip <%= filters.status === 'open' && filters.type === 'lost' ? 'active' : '' %>" href="<%= link({ type: 'lost', status: 'open' }) %>">Lost</a>
-    <a class="chip <%= filters.status === 'open' && filters.type === 'found' ? 'active' : '' %>" href="<%= link({ type: 'found', status: 'open' }) %>">Found</a>
-    <a class="chip <%= filters.status === 'resolved' ? 'active' : '' %>" href="<%= link({ type: '', status: 'resolved' }) %>">Returned ✓</a>
-  </div>
-
-  <% if (items.length) { %>
-    <div class="grid">
-      <% items.forEach((item) => { %><%- include('partials/card', { item }) %><% }) %>
-    </div>
-    <% if (pages > 1) { %>
-      <nav class="pager">
-        <% if (page > 1) { %><a class="btn btn-outline btn-sm" href="<%= link({ page: page - 1 }) %>">← Newer</a><% } %>
-        <span class="muted small" style="align-self:center">Page <%= page %> of <%= pages %></span>
-        <% if (page < pages) { %><a class="btn btn-outline btn-sm" href="<%= link({ page: page + 1 }) %>">Older →</a><% } %>
-      </nav>
-    <% } %>
-  <% } else { %>
-    <div class="empty">
-      <%- icon('box') %>
-      <% if (filters.q || filters.category) { %>
-        <p>Nothing matches your search. Try different words, or post it yourself.</p>
-      <% } else { %>
-        <p>No posts here yet.</p>
-      <% } %>
-      <div class="row" style="justify-content:center">
-        <a class="btn btn-lost btn-sm" href="/report/lost">Report lost item</a>
-        <a class="btn btn-found btn-sm" href="/report/found">Report found item</a>
+      <div class="hero-art" aria-hidden="true">
+        <div class="float-card fc-item">
+          <div class="fc-ph"><%- icon('wallet') %></div>
+          <span class="pill pill-glass found">Found</span>
+          <div class="t">Brown leather wallet</div>
+          <div class="m"><%- icon('map-pin') %> Central Library · 2h ago</div>
+        </div>
+        <div class="float-card fc-item two">
+          <div class="fc-ph"><%- icon('calculator') %></div>
+          <span class="pill pill-glass lost">Lost</span>
+          <div class="t">Casio fx-991ES</div>
+          <div class="m"><%- icon('map-pin') %> Mechatronics Lab</div>
+        </div>
+        <div class="float-card fc-toast">
+          <span class="ok"><%- icon('handshake') %></span>
+          <div><b>Match confirmed!</b><span>Numbers shared privately</span></div>
+        </div>
+        <div class="float-card fc-bell"><%- icon('bell-ring') %></div>
       </div>
     </div>
-  <% } %>
+  </section>
+
+  <div class="push-banner hidden" id="notify-banner">
+    <span class="pb-ico"><%- icon('bell-ring') %></span>
+    <div class="pb-text">
+      <b>Never miss a post</b>
+      <span>Get a notification the moment something is lost or found on campus.</span>
+    </div>
+    <button class="btn btn-primary btn-sm" data-push-enable><%- icon('bell') %> Turn on alerts</button>
+  </div>
+
+  <section class="section" id="browse">
+    <div class="section-head">
+      <div>
+        <span class="kicker">Live board</span>
+        <h2><%= filters.status === 'resolved' ? 'Happily returned' : 'Latest on campus' %></h2>
+      </div>
+      <nav class="seg" aria-label="Filter by type">
+        <a class="<%= tab === 'all' ? 'on' : '' %>" href="<%= link({ type: '', status: 'open', page: '' }) %>">All</a>
+        <a class="<%= tab === 'lost' ? 'on' : '' %>" href="<%= link({ type: 'lost', status: 'open', page: '' }) %>">Lost</a>
+        <a class="<%= tab === 'found' ? 'on' : '' %>" href="<%= link({ type: 'found', status: 'open', page: '' }) %>">Found</a>
+        <a class="<%= tab === 'resolved' ? 'on' : '' %>" href="<%= link({ type: '', status: 'resolved', page: '' }) %>"><%- icon('badge-check') %> Returned</a>
+      </nav>
+    </div>
+
+    <div class="cat-scroll" role="list">
+      <a class="cat <%= !filters.category ? 'active' : '' %>" style="--c: var(--primary)" href="<%= link({ category: '', page: '' }) %>"><span class="ico"><%- icon('layout-grid') %></span>All items</a>
+      <% config.categoryList.forEach((c) => { %>
+        <a class="cat <%= filters.category === c.name ? 'active' : '' %>" style="--c: <%= c.color %>" href="<%= link({ category: c.name, page: '' }) %>"><span class="ico"><%- icon(c.icon) %></span><%= c.short %></a>
+      <% }) %>
+    </div>
+
+    <% if (filters.q || filters.category) { %>
+      <div class="row" style="margin: 4px 0 18px">
+        <span class="muted small"><%= total %> result<%= total === 1 ? '' : 's' %> for</span>
+        <% if (filters.q) { %><span class="filter-note">“<%= filters.q %>”<a href="<%= link({ q: '', page: '' }) %>" aria-label="Clear search"><%- icon('x') %></a></span><% } %>
+        <% if (filters.category) { %><span class="filter-note"><%= cat(filters.category).short %><a href="<%= link({ category: '', page: '' }) %>" aria-label="Clear category"><%- icon('x') %></a></span><% } %>
+      </div>
+    <% } %>
+
+    <% if (items.length) { %>
+      <div class="grid">
+        <% items.forEach((item) => { %><%- include('partials/card', { item }) %><% }) %>
+      </div>
+      <% if (pages > 1) { %>
+        <nav class="pager">
+          <% if (page > 1) { %><a class="btn btn-sm" href="<%= link({ page: page - 1 }) %>"><%- icon('arrow-left') %> Newer</a><% } %>
+          <span class="muted small">Page <%= page %> of <%= pages %></span>
+          <% if (page < pages) { %><a class="btn btn-sm" href="<%= link({ page: page + 1 }) %>">Older <%- icon('arrow-right') %></a><% } %>
+        </nav>
+      <% } %>
+    <% } else { %>
+      <div class="empty">
+        <div class="e-ico"><%- icon(filters.q || filters.category ? 'scan-search' : 'inbox') %></div>
+        <h3><%= filters.q || filters.category ? 'No matches yet' : (filters.status === 'resolved' ? 'No returns yet' : 'All clear on campus') %></h3>
+        <p><%= filters.q || filters.category ? "Nothing matches right now. Post it so people can let you know when it turns up." : 'Nothing has been posted here yet. Be the first to help someone out.' %></p>
+        <div class="row">
+          <a class="btn btn-lost" href="/report/lost"><%- icon('scan-search') %> Report lost</a>
+          <a class="btn btn-found" href="/report/found"><%- icon('hand-heart') %> Report found</a>
+        </div>
+      </div>
+    <% } %>
+  </section>
+
+  <section class="section">
+    <div class="section-head">
+      <div>
+        <span class="kicker">How it works</span>
+        <h2>Back in your hands in three steps</h2>
+      </div>
+      <a class="btn btn-sm" href="/about">Full guide <%- icon('arrow-right') %></a>
+    </div>
+    <div class="steps">
+      <div class="panel step reveal">
+        <span class="n">1</span>
+        <div class="s-ico" style="background: linear-gradient(135deg, #f43f5e, #e11d48)"><%- icon('camera') %></div>
+        <h3>Post it</h3>
+        <p>Snap a photo, pick a category and say where. Takes less than a minute.</p>
+      </div>
+      <div class="panel step reveal">
+        <span class="n">2</span>
+        <div class="s-ico" style="background: linear-gradient(135deg, #6366f1, #3347d6)"><%- icon('bell-ring') %></div>
+        <h3>Campus gets alerted</h3>
+        <p>Everyone with alerts on is notified instantly. Share it to your class WhatsApp group too.</p>
+      </div>
+      <div class="panel step reveal">
+        <span class="n">3</span>
+        <div class="s-ico" style="background: linear-gradient(135deg, #10b981, #059669)"><%- icon('handshake') %></div>
+        <h3>Match &amp; meet</h3>
+        <p>Confirm the match and you both get each other's number. Meet up and mark it returned.</p>
+      </div>
+    </div>
+    <div class="trust">
+      <div class="panel trust-item reveal"><span class="t-ico"><%- icon('lock') %></span><div><b>Your number stays private</b><span>Shared only with the other person after you confirm a match.</span></div></div>
+      <div class="panel trust-item reveal"><span class="t-ico"><%- icon('shield-check') %></span><div><b>Secret details</b><span>Finders can hide a detail only the real owner would know.</span></div></div>
+      <div class="panel trust-item reveal"><span class="t-ico"><%- icon('hourglass') %></span><div><b>Always fresh</b><span>Posts close automatically after <%= config.LOST_EXPIRY_DAYS %>–<%= config.FOUND_EXPIRY_DAYS %> days, so the board stays clean.</span></div></div>
+    </div>
+  </section>
 </div>
 
 <%- include('partials/foot') %>

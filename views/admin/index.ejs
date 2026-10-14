@@ -1,54 +1,51 @@
 <%- include('../partials/head') %>
 <div class="container">
-  <h1 style="margin:24px 0 0">Admin</h1>
   <%- include('nav') %>
 
-  <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(140px,1fr))">
-    <div class="stat"><b><%= counts.open || 0 %></b><span>Open posts</span></div>
-    <div class="stat found"><b><%= counts.resolved || 0 %></b><span>Returned</span></div>
-    <div class="stat"><b><%= counts.expired || 0 %></b><span>Expired</span></div>
-    <div class="stat"><b><%= counts.closed || 0 %></b><span>Closed</span></div>
-    <div class="stat"><b><%= counts.last7 || 0 %></b><span>Posts in last 7 days</span></div>
-    <div class="stat"><b><%= users %></b><span>Users</span></div>
-    <div class="stat"><b><%= subscribers %></b><span>Devices with alerts on</span></div>
+  <div class="kpis">
+    <div class="panel kpi"><span class="k-ico" style="background:var(--primary-soft);color:var(--primary)"><%- icon('package') %></span><b><%= counts.open || 0 %></b><span>Open posts</span></div>
+    <div class="panel kpi"><span class="k-ico" style="background:var(--found-soft);color:var(--found)"><%- icon('badge-check') %></span><b><%= counts.resolved || 0 %></b><span>Returned</span></div>
+    <div class="panel kpi"><span class="k-ico" style="background:var(--warn-soft);color:var(--warn)"><%- icon('hourglass') %></span><b><%= counts.expired || 0 %></b><span>Expired</span></div>
+    <div class="panel kpi"><span class="k-ico" style="background:var(--surface-2);color:var(--muted)"><%- icon('circle-x') %></span><b><%= counts.closed || 0 %></b><span>Closed</span></div>
+    <div class="panel kpi"><span class="k-ico" style="background:var(--lost-soft);color:var(--lost)"><%- icon('zap') %></span><b><%= counts.last7 || 0 %></b><span>Posts this week</span></div>
+    <div class="panel kpi"><span class="k-ico" style="background:var(--primary-soft);color:var(--primary)"><%- icon('users') %></span><b><%= users %></b><span>Users</span></div>
+    <div class="panel kpi"><span class="k-ico" style="background:var(--primary-soft);color:var(--primary)"><%- icon('bell-ring') %></span><b><%= subscribers %></b><span>Devices with alerts</span></div>
   </div>
 
-  <form class="filters" method="get" action="/admin">
-    <input type="search" name="q" value="<%= q %>" placeholder="Title, name or phone">
-    <select name="status" onchange="this.form.submit()">
+  <form class="toolbar" method="get" action="/admin">
+    <div class="input-icon"><%- icon('search') %><input type="search" name="q" value="<%= q %>" placeholder="Search title, name or phone"></div>
+    <select name="status" onchange="this.form.submit()" aria-label="Status">
       <option value="">All statuses</option>
       <% ['open', 'resolved', 'closed', 'expired'].forEach((s) => { %><option value="<%= s %>" <%= status === s ? 'selected' : '' %>><%= STATUS_LABEL[s] %></option><% }) %>
     </select>
     <button class="btn btn-primary">Filter</button>
-    <span class="spacer"></span>
-  </form>
-  <form method="post" action="/admin/run-expiry" style="margin-bottom:12px">
-    <input type="hidden" name="_csrf" value="<%= csrf %>">
-    <button class="btn btn-outline btn-sm"><%- icon('clock') %> Run expiry check now</button>
-    <span class="muted small">(runs automatically every 15 minutes)</span>
   </form>
 
-  <div class="panel table-wrap">
+  <div class="panel table-wrap" style="padding:6px">
     <table>
-      <thead><tr><th>#</th><th>Post</th><th>Poster</th><th>Status</th><th>Created</th><th>Expires</th><th>Actions</th></tr></thead>
+      <thead><tr><th>Post</th><th>Poster</th><th>Status</th><th>Created</th><th>Closes</th><th></th></tr></thead>
       <tbody>
-        <% if (!items.length) { %><tr><td colspan="7" class="muted">No posts.</td></tr><% } %>
+        <% if (!items.length) { %><tr><td colspan="6" class="muted center" style="padding:32px">No posts.</td></tr><% } %>
         <% items.forEach((i) => { %>
           <tr>
-            <td><%= i.id %></td>
-            <td><span class="tag tag-<%= i.type %>"><%= i.type %></span> <a href="/items/<%= i.id %>"><%= i.title %></a><div class="muted small"><%= i.category %> · <%= i.response_count %> responses</div></td>
-            <td><%= i.poster_name %><div class="muted small"><%= i.poster_phone %></div></td>
-            <td><%= STATUS_LABEL[i.status] %><% if (i.closed_by) { %><div class="muted small">by <%= i.closed_by %></div><% } %></td>
+            <td>
+              <div class="t-item">
+                <div class="list-thumb"><% if (i.photo) { %><img src="/uploads/<%= i.photo %>" alt=""><% } else { %><%- include('../partials/ph', { category: i.category }) %><% } %></div>
+                <div><a href="/items/<%= i.id %>"><%= i.title %></a><div class="row" style="gap:6px;margin-top:4px"><span class="pill pill-<%= i.type %>"><%= i.type %></span><span class="muted tiny">#<%= i.id %> · <%= i.response_count %> responses</span></div></div>
+              </div>
+            </td>
+            <td><b style="font-weight:600"><%= i.poster_name %></b><div class="muted tiny"><%= i.poster_phone %></div></td>
+            <td><span class="pill pill-<%= i.status %>"><%= STATUS_LABEL[i.status] %></span><% if (i.closed_by) { %><div class="muted tiny" style="margin-top:4px">by <%= i.closed_by %></div><% } %></td>
             <td class="small"><%= fmtDate(i.created_at) %></td>
             <td class="small"><%= i.status === 'open' ? fmtDate(i.expires_at) : '—' %></td>
             <td>
-              <div class="row" style="gap:6px">
+              <div class="row" style="gap:6px;flex-wrap:nowrap">
                 <% if (i.status === 'open') { %>
-                  <form method="post" action="/admin/items/<%= i.id %>/close"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn btn-outline btn-sm">Close</button></form>
+                  <form method="post" action="/admin/items/<%= i.id %>/close"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn btn-sm">Close</button></form>
                 <% } else { %>
-                  <form method="post" action="/admin/items/<%= i.id %>/reopen"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn btn-outline btn-sm">Reopen</button></form>
+                  <form method="post" action="/admin/items/<%= i.id %>/reopen"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn btn-sm">Reopen</button></form>
                 <% } %>
-                <form method="post" action="/admin/items/<%= i.id %>/delete" data-confirm="Delete post #<%= i.id %> permanently?"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn btn-danger btn-sm">Delete</button></form>
+                <form method="post" action="/admin/items/<%= i.id %>/delete" data-confirm="Delete post #<%= i.id %> permanently?"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn btn-sm btn-danger" aria-label="Delete"><%- icon('trash-2') %></button></form>
               </div>
             </td>
           </tr>
@@ -56,5 +53,11 @@
       </tbody>
     </table>
   </div>
+
+  <form method="post" action="/admin/run-expiry" class="row" style="margin-top:16px">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <button class="btn btn-sm btn-soft"><%- icon('refresh-cw') %> Run expiry check now</button>
+    <span class="muted tiny">Runs automatically every 15 minutes.</span>
+  </form>
 </div>
 <%- include('../partials/foot') %>

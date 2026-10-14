@@ -78,7 +78,7 @@ function userItems(userId) {
 
 function userResponses(userId) {
   return db.prepare(`
-    SELECT r.*, i.title, i.type, i.status AS item_status, ${COVER} AS photo
+    SELECT r.*, i.title, i.type, i.category, i.status AS item_status, ${COVER} AS photo
     FROM responses r JOIN items i ON i.id = r.item_id
     WHERE r.user_id = ? ORDER BY r.created_at DESC
   `).all(userId);

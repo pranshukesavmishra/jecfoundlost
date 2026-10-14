@@ -37,6 +37,7 @@ router.get('/', (req, res) => {
   if (q) { where.push('(i.title LIKE ? OR u.name LIKE ? OR u.phone LIKE ?)'); params.push(`%${q}%`, `%${q}%`, `%${q}%`); }
   const items = db.prepare(`
     SELECT i.*, u.name AS poster_name, u.phone AS poster_phone,
+      (SELECT filename FROM photos p WHERE p.item_id = i.id ORDER BY p.id LIMIT 1) AS photo,
       (SELECT COUNT(*) FROM responses r WHERE r.item_id = i.id) AS response_count
     FROM items i JOIN users u ON u.id = i.user_id
     ${where.length ? `WHERE ${where.join(' AND ')}` : ''}

@@ -1,50 +1,59 @@
 <%- include('partials/head') %>
-<div class="container narrow" style="max-width:520px">
-  <div class="panel" style="margin-top:32px">
-    <h1>Create your account</h1>
-    <p class="muted small">For JEC students and staff. Your mobile number stays private: it is only shared with the other person after a lost/found match is confirmed.</p>
-    <% if (error) { %><div class="alert alert-error" role="alert" style="margin-bottom:12px"><%= error %></div><% } %>
+<div class="auth-wrap"><div class="container auth-inner">
+  <div class="panel auth-card wide">
+    <div class="auth-top">
+      <img src="<%= site.logo %>" alt="">
+      <h1>Join JEC Lost &amp; Found</h1>
+      <p>For students and staff of <%= site.college %>. Takes 30 seconds.</p>
+    </div>
+    <% if (error) { %><div class="alert alert-error" role="alert" style="margin-bottom:16px"><%- icon('circle-alert') %><span><%= error %></span></div><% } %>
     <form method="post" action="/register">
       <input type="hidden" name="_csrf" value="<%= csrf %>">
       <input type="hidden" name="next" value="<%= next %>">
       <div class="field">
         <label for="name">Full name</label>
-        <input id="name" type="text" name="name" autocomplete="name" required maxlength="80" value="<%= form.name || '' %>">
+        <div class="input-icon"><%- icon('user') %><input id="name" type="text" name="name" autocomplete="name" required maxlength="80" value="<%= form.name || '' %>" placeholder="As on your college ID"></div>
       </div>
       <div class="grid-2 field">
         <div>
-          <label for="phone">Mobile number <span class="hint">(WhatsApp preferred)</span></label>
-          <input id="phone" type="tel" name="phone" inputmode="numeric" autocomplete="tel" required value="<%= form.phone || '' %>" placeholder="10-digit number">
+          <label for="phone">Mobile <span class="hint">· WhatsApp preferred</span></label>
+          <div class="input-icon"><%- icon('smartphone') %><input id="phone" type="tel" name="phone" inputmode="numeric" autocomplete="tel" required value="<%= form.phone || '' %>" placeholder="10-digit number"></div>
         </div>
         <div>
-          <label for="college_id">Enrollment no. / Employee ID</label>
-          <input id="college_id" type="text" name="college_id" required maxlength="40" value="<%= form.college_id || '' %>">
+          <label for="college_id">Enrollment / Employee ID</label>
+          <div class="input-icon"><%- icon('id-card') %><input id="college_id" type="text" name="college_id" required maxlength="40" value="<%= form.college_id || '' %>" placeholder="e.g. 0201ME231045"></div>
         </div>
       </div>
-      <div class="field">
-        <label for="department">Department</label>
-        <select id="department" name="department" required>
-          <option value="">Choose…</option>
-          <% config.departments.forEach((d) => { %><option <%= form.department === d ? 'selected' : '' %>><%= d %></option><% }) %>
-        </select>
-      </div>
-      <div class="field">
-        <label for="email">E-mail <span class="hint">(optional)</span></label>
-        <input id="email" type="email" name="email" autocomplete="email" maxlength="120" value="<%= form.email || '' %>">
+      <div class="grid-2 field">
+        <div>
+          <label for="department">Department</label>
+          <div class="input-icon"><%- icon('building-2') %>
+            <select id="department" name="department" required>
+              <option value="">Choose…</option>
+              <% config.departments.forEach((d) => { %><option <%= form.department === d ? 'selected' : '' %>><%= d %></option><% }) %>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label for="email">E-mail <span class="hint">· optional</span></label>
+          <div class="input-icon"><%- icon('send') %><input id="email" type="email" name="email" autocomplete="email" maxlength="120" value="<%= form.email || '' %>" placeholder="you@example.com"></div>
+        </div>
       </div>
       <div class="grid-2 field">
         <div>
           <label for="password">Password</label>
-          <input id="password" type="password" name="password" autocomplete="new-password" minlength="6" required>
+          <div class="input-icon"><%- icon('lock') %><input id="password" type="password" name="password" autocomplete="new-password" minlength="6" required placeholder="At least 6 characters"></div>
         </div>
         <div>
           <label for="password2">Repeat password</label>
-          <input id="password2" type="password" name="password2" autocomplete="new-password" minlength="6" required>
+          <div class="input-icon"><%- icon('lock') %><input id="password2" type="password" name="password2" autocomplete="new-password" minlength="6" required placeholder="Same again"></div>
         </div>
       </div>
-      <button class="btn btn-primary btn-block" style="margin-top:16px">Create account</button>
+      <div class="privacy-note"><%- icon('shield-check') %><span>Your mobile number is never shown publicly. It's only shared with the other person after a lost/found match is confirmed.</span></div>
+      <button class="btn btn-primary btn-lg btn-block" style="margin-top:20px">Create account <%- icon('arrow-right') %></button>
     </form>
-    <p class="small center" style="margin-top:16px">Already registered? <a href="/login?next=<%= encodeURIComponent(next) %>">Sign in</a></p>
+    <div class="auth-foot">Already have an account? <a href="/login?next=<%= encodeURIComponent(next) %>"><b>Sign in</b></a></div>
   </div>
+</div>
 </div>
 <%- include('partials/foot') %>

@@ -19,7 +19,7 @@ See [`docs/PLAN.md`](docs/PLAN.md) for the full design.
 - Share-to-WhatsApp button on every post.
 - Auto-expiry, a reminder 2 days before expiry, and up to 2 extensions per post.
 - Admin panel: close, reopen and delete posts; block users; reset passwords; promote admins; edit collection points; see stats.
-- Mobile-first design with dark mode. Can be installed as an app (PWA).
+- Premium, mobile-first design: app-style bottom bar with a quick "+" button, category icons, status tracker on every post, toasts, smooth animations, and automatic dark mode. Can be installed as an app (PWA).
 
 ## Run it locally
 
@@ -113,7 +113,9 @@ public/            CSS, browser JS, service worker, icons
 test/              end-to-end tests (node --test)
 ```
 
-To change the college details, categories, departments or campus places, edit `src/config.js`.
+To change the college details, categories (with their icons and colours), departments or campus places, edit `src/config.js`.
+
+Credits: font [Plus Jakarta Sans](https://github.com/tokotype/PlusJakartaSans) (SIL Open Font License, bundled in `public/fonts`), icons from [Lucide](https://lucide.dev) (ISC licence).
 
 ---
 

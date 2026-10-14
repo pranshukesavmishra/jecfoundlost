@@ -1,30 +1,81 @@
 </main>
+
 <footer class="site-footer">
   <div class="container">
-    <div>
-      <strong><%= site.name %></strong> · <%= site.college %><br>
-      <span class="muted small"><%= site.address %></span><br>
-      <span class="small"><a href="/about">How it works</a> · <a href="#" data-push-toggle>Notifications</a><% if (user) { %> · <a href="/me/profile">My profile</a> · <form method="post" action="/logout" style="display:inline"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="linkbtn">Sign out</button></form><% } %></span>
+    <div class="footer-grid">
+      <div>
+        <a class="brand" href="/">
+          <img class="brand-logo" src="<%= site.logo %>" alt="" width="40" height="40">
+          <span class="brand-text"><strong><%= site.name %></strong><span><%= site.college %></span></span>
+        </a>
+        <p>A free, campus-wide lost &amp; found board. Post what you lost or found, and we'll help connect owners and finders safely.</p>
+      </div>
+      <div>
+        <h4>Quick links</h4>
+        <ul>
+          <li><a href="/">Browse posts</a></li>
+          <li><a href="/report/lost">Report a lost item</a></li>
+          <li><a href="/report/found">Report a found item</a></li>
+          <li><a href="/about">How it works</a></li>
+          <% if (user) { %>
+            <li><form method="post" action="/logout"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="linkbtn">Sign out</button></form></li>
+          <% } else { %>
+            <li><a href="/login">Sign in</a></li>
+          <% } %>
+        </ul>
+      </div>
+      <div>
+        <h4>Built with care</h4>
+        <div class="powered-card">
+          <span class="p-ico"><%- icon('settings') %></span>
+          <div>
+            <small>Powered by</small>
+            <b><%= site.poweredBy %></b>
+            <span><%= site.college %></span>
+          </div>
+        </div>
+      </div>
     </div>
-    <div class="powered">
-      <%- icon('gear') %>
-      <span>Powered by <%= site.poweredBy %><small><%= site.collegeShort %></small></span>
+    <div class="footer-bottom">
+      <span>© <%= year %> <%= site.name %> · <%= site.address %></span>
+      <span>Powered by Mechatronics Department, <%= site.collegeShort %></span>
     </div>
   </div>
 </footer>
 
-<nav class="mobile-bar" aria-label="Quick actions">
-  <a href="/" class="<%= path === '/' ? 'active' : '' %>"><%- icon('home') %>Browse</a>
-  <a href="/report/lost" class="<%= path === '/report/lost' ? 'active' : '' %>"><%- icon('search') %>Lost</a>
-  <a href="/report/found" class="<%= path === '/report/found' ? 'active' : '' %>"><%- icon('hand') %>Found</a>
+<nav class="tabbar" aria-label="Quick navigation">
+  <a href="/" class="<%= path === '/' ? 'on' : '' %>"><%- icon('house') %>Home</a>
   <% if (user) { %>
-    <a href="/me" class="<%= path === '/me' ? 'active' : '' %>"><%- icon('box') %>Mine</a>
-    <% if (user.role === 'admin') { %><a href="/admin" class="<%= path.startsWith('/admin') ? 'active' : '' %>"><%- icon('gear') %>Admin</a><% } else { %><a href="/me/profile" class="<%= path === '/me/profile' ? 'active' : '' %>"><%- icon('user') %>Profile</a><% } %>
+    <a href="/me/notifications" class="<%= path === '/me/notifications' ? 'on' : '' %>"><%- icon('bell') %>Alerts<% if (unread) { %><span class="dot"></span><% } %></a>
   <% } else { %>
-    <a href="/login"><%- icon('user') %>Sign in</a>
+    <a href="/about" class="<%= path === '/about' ? 'on' : '' %>"><%- icon('info') %>Guide</a>
+  <% } %>
+  <div class="fab-wrap"><button class="fab" type="button" data-sheet-open="report-sheet" aria-label="Report an item"><%- icon('plus') %></button></div>
+  <% if (user) { %>
+    <a href="/me" class="<%= path === '/me' ? 'on' : '' %>"><%- icon('package') %>My posts</a>
+    <a href="<%= user.role === 'admin' ? '/admin' : '/me/profile' %>" class="<%= path === '/me/profile' || path.startsWith('/admin') ? 'on' : '' %>"><%- icon(user.role === 'admin' ? 'shield-check' : 'circle-user-round') %><%= user.role === 'admin' ? 'Admin' : 'Profile' %></a>
+  <% } else { %>
+    <a href="/login" class="<%= path === '/login' || path === '/register' ? 'on' : '' %>"><%- icon('circle-user-round') %>Sign in</a>
   <% } %>
 </nav>
 
-<script src="/js/app.js?v=1" defer></script>
+<dialog class="sheet" id="report-sheet">
+  <div class="sheet-body">
+    <div class="sheet-grip"></div>
+    <h3>What happened?</h3>
+    <a class="sheet-opt" href="/report/lost">
+      <span class="menu-ico lost"><%- icon('scan-search') %></span>
+      <div><b>I lost something</b><span>Ask the whole campus to look out for it</span></div>
+      <%- icon('chevron-right', 'chev') %>
+    </a>
+    <a class="sheet-opt" href="/report/found">
+      <span class="menu-ico found"><%- icon('hand-heart') %></span>
+      <div><b>I found something</b><span>Help it get back to its owner</span></div>
+      <%- icon('chevron-right', 'chev') %>
+    </a>
+  </div>
+</dialog>
+
+<script src="/js/app.js?v=3" defer></script>
 </body>
 </html>

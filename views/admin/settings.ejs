@@ -1,22 +1,23 @@
 <%- include('../partials/head') %>
 <div class="container narrow">
-  <h1 style="margin:24px 0 0">Settings</h1>
   <%- include('nav') %>
 
   <form class="panel" method="post" action="/admin/settings">
     <input type="hidden" name="_csrf" value="<%= csrf %>">
-    <label for="points">Collection points <span class="hint">(one per line — where finders can deposit items)</span></label>
-    <textarea id="points" name="points" rows="8"><%= points.join('\n') %></textarea>
-    <button class="btn btn-primary" style="margin-top:12px">Save</button>
+    <div class="panel-title"><span class="step-num"><%- icon('building-2') %></span><div><h3>Collection points</h3><p>Where finders can deposit items. One per line.</p></div></div>
+    <textarea id="points" name="points" rows="7" aria-label="Collection points"><%= points.join('\n') %></textarea>
+    <button class="btn btn-primary" style="margin-top:14px"><%- icon('check') %> Save</button>
   </form>
 
   <div class="panel" style="margin-top:16px">
-    <h3>Expiry rules</h3>
-    <ul class="small">
-      <li>Lost posts close after <strong><%= config.LOST_EXPIRY_DAYS %> days</strong>; found posts after <strong><%= config.FOUND_EXPIRY_DAYS %> days</strong>.</li>
-      <li>Reminder sent <strong><%= config.REMINDER_DAYS_BEFORE %> days</strong> before; posters can extend <strong><%= config.MAX_EXTENSIONS %></strong> times.</li>
-    </ul>
-    <p class="muted small">Change these with the <code>LOST_EXPIRY_DAYS</code>, <code>FOUND_EXPIRY_DAYS</code>, <code>REMINDER_DAYS_BEFORE</code> and <code>MAX_EXTENSIONS</code> environment variables.</p>
+    <div class="panel-title"><span class="step-num"><%- icon('hourglass') %></span><div><h3>Expiry rules</h3><p>Set with environment variables on the server</p></div></div>
+    <div class="facts" style="margin:0">
+      <div class="fact"><span class="f-ico"><%- icon('scan-search') %></span><div><small>Lost posts close after</small><b><%= config.LOST_EXPIRY_DAYS %> days</b></div></div>
+      <div class="fact"><span class="f-ico"><%- icon('hand-heart') %></span><div><small>Found posts close after</small><b><%= config.FOUND_EXPIRY_DAYS %> days</b></div></div>
+      <div class="fact"><span class="f-ico"><%- icon('bell') %></span><div><small>Reminder before closing</small><b><%= config.REMINDER_DAYS_BEFORE %> days</b></div></div>
+      <div class="fact"><span class="f-ico"><%- icon('refresh-cw') %></span><div><small>Extensions allowed</small><b><%= config.MAX_EXTENSIONS %></b></div></div>
+    </div>
+    <p class="muted tiny" style="margin:14px 0 0"><code>LOST_EXPIRY_DAYS</code>, <code>FOUND_EXPIRY_DAYS</code>, <code>REMINDER_DAYS_BEFORE</code>, <code>MAX_EXTENSIONS</code></p>
   </div>
 </div>
 <%- include('../partials/foot') %>

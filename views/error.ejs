@@ -1,9 +1,10 @@
 <%- include('partials/head') %>
 <div class="container narrow">
-  <div class="panel center" style="margin-top:40px">
-    <h1><%= title %></h1>
-    <p class="muted"><%= message %></p>
-    <a class="btn btn-primary" href="/">Go to home page</a>
+  <div class="empty" style="margin-top:48px">
+    <div class="e-ico"><%- icon('circle-alert') %></div>
+    <h3><%= title %></h3>
+    <p><%= message %></p>
+    <div class="row"><a class="btn btn-primary" href="/"><%- icon('house') %> Back to home</a></div>
   </div>
 </div>
 <%- include('partials/foot') %>

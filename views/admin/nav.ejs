@@ -1,5 +1,9 @@
-<div class="admin-nav">
-  <a class="chip <%= path === '/admin' || path === '/admin/' ? 'active' : '' %>" href="/admin">Posts</a>
-  <a class="chip <%= path === '/admin/users' ? 'active' : '' %>" href="/admin/users">Users</a>
-  <a class="chip <%= path === '/admin/settings' ? 'active' : '' %>" href="/admin/settings">Settings</a>
+<div class="page-head">
+  <span class="menu-ico" style="background:var(--primary-soft);color:var(--primary)"><%- icon('shield-check') %></span>
+  <div><h1>Admin</h1><p>Moderate posts and people · <%= site.poweredBy %></p></div>
 </div>
+<nav class="seg" style="margin-bottom:24px" aria-label="Admin sections">
+  <a class="<%= path === '/admin' || path === '/admin/' ? 'on' : '' %>" href="/admin"><%- icon('layout-grid') %> Posts</a>
+  <a class="<%= path === '/admin/users' ? 'on' : '' %>" href="/admin/users"><%- icon('users') %> Users</a>
+  <a class="<%= path === '/admin/settings' ? 'on' : '' %>" href="/admin/settings"><%- icon('settings') %> Settings</a>
+</nav>

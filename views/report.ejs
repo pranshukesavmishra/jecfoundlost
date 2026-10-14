@@ -1,82 +1,114 @@
 <%- include('partials/head') %>
-<% const isLost = type === 'lost'; %>
+<%
+  const isLost = type === 'lost';
+  const yesterday = new Date(new Date(`${today}T00:00:00Z`).getTime() - 86400000).toISOString().slice(0, 10);
+  let n = 0;
+%>
 <div class="container narrow">
-  <div style="margin:24px 0 16px">
-    <span class="tag tag-<%= type %>"><%= isLost ? 'Lost' : 'Found' %></span>
-    <h1 style="margin-top:8px"><%= isLost ? 'Report something you lost' : 'Report something you found' %></h1>
-    <p class="muted"><%= isLost
-      ? 'Everyone on campus will see this. People who find it can respond, and you will get their number once you confirm.'
-      : 'Thank you for helping! The owner can respond with proof, and you choose whether to share numbers.' %></p>
+  <div class="report-head">
+    <nav class="seg" aria-label="Report type">
+      <a class="lost <%= isLost ? 'on' : '' %>" href="/report/lost"><%- icon('scan-search') %> I lost something</a>
+      <a class="found <%= !isLost ? 'on' : '' %>" href="/report/found"><%- icon('hand-heart') %> I found something</a>
+    </nav>
+    <h1><%= isLost ? "Let's find it together" : 'Thanks for being awesome' %></h1>
+    <p><%= isLost
+      ? 'Describe what you lost. The whole campus gets an alert, and you get a notification the moment someone finds it.'
+      : 'Post what you found. The owner can claim it with proof, and you decide when to share numbers.' %></p>
   </div>
 
-  <% if (error) { %><div class="alert alert-error" role="alert" style="margin-bottom:16px"><%= error %></div><% } %>
+  <% if (error) { %><div class="alert alert-error" role="alert" style="margin-bottom:16px"><%- icon('circle-alert') %><span><%= error %></span></div><% } %>
   <div class="alert alert-error hidden" role="alert" data-form-error style="margin-bottom:16px"></div>
 
-  <form class="panel" method="post" action="/report/<%= type %>" enctype="multipart/form-data" data-photo-form>
+  <form class="form-stack" method="post" action="/report/<%= type %>" enctype="multipart/form-data" data-photo-form>
     <input type="hidden" name="_csrf" value="<%= csrf %>">
 
-    <div class="field">
-      <label for="title">What is it?</label>
-      <input id="title" type="text" name="title" required minlength="3" maxlength="80" value="<%= form.title || '' %>" placeholder="e.g. Black Casio fx-991ES calculator">
-    </div>
-
-    <div class="grid-2 field">
-      <div>
-        <label for="category">Category</label>
-        <select id="category" name="category" required>
-          <option value="">Choose…</option>
-          <% config.categories.forEach((c) => { %><option <%= form.category === c ? 'selected' : '' %>><%= c %></option><% }) %>
-        </select>
-      </div>
-      <div>
-        <label for="event_date"><%= isLost ? 'When did you lose it?' : 'When did you find it?' %></label>
-        <input id="event_date" type="date" name="event_date" max="<%= today %>" value="<%= form.event_date || '' %>">
-      </div>
-    </div>
-
-    <div class="field">
-      <label for="location"><%= isLost ? 'Where did you lose it? (roughly)' : 'Where did you find it?' %></label>
-      <input id="location" type="text" name="location" required maxlength="120" list="places" value="<%= form.location || '' %>" placeholder="e.g. Central Library, 2nd floor">
-      <datalist id="places"><% config.places.forEach((p) => { %><option value="<%= p %>"><% }) %></datalist>
-    </div>
-
-    <div class="field">
-      <label for="description">Details <span class="hint">(colour, brand, stickers, what was inside…)</span></label>
-      <textarea id="description" name="description" maxlength="1500" placeholder="<%= isLost ? 'e.g. Blue cover with my name on the back. Has a cracked corner.' : 'Describe it, but keep one detail secret (below) so you can check the real owner.' %>"><%= form.description || '' %></textarea>
-    </div>
-
-    <% if (!isLost) { %>
+    <section class="panel">
+      <div class="panel-title"><span class="step-num"><%= ++n %></span><div><h3>What is it?</h3><p>A short name people will recognise</p></div></div>
       <div class="field">
-        <label>Where is the item now?</label>
-        <div class="radio-cards">
-          <label><input type="radio" name="handover" value="me" <%= form.handover === 'me' || !form.handover ? 'checked' : '' %>>
-            <span>I'm keeping it — the owner can contact me<br><span class="hint">Your number is shared only after you confirm the owner.</span></span></label>
-          <% collectionPoints.forEach((p) => { %>
-            <label><input type="radio" name="handover" value="<%= p %>" <%= form.handover === p ? 'checked' : '' %>>
-              <span>Deposited at <strong><%= p %></strong></span></label>
+        <input id="title" type="text" name="title" required minlength="3" maxlength="80" value="<%= form.title || '' %>" placeholder="e.g. Black Casio fx-991ES calculator" aria-label="Item name">
+      </div>
+      <div class="field">
+        <span class="label">Category</span>
+        <div class="tiles">
+          <% config.categoryList.forEach((c, i) => { %>
+            <label class="tile">
+              <input type="radio" name="category" value="<%= c.name %>" <%= form.category === c.name ? 'checked' : '' %> <%= i === 0 ? 'required' : '' %>>
+              <span style="--c: <%= c.color %>"><span class="ico"><%- icon(c.icon) %></span><%= c.short %></span>
+            </label>
           <% }) %>
         </div>
       </div>
+    </section>
 
+    <section class="panel">
+      <div class="panel-title"><span class="step-num"><%= ++n %></span><div><h3>Where &amp; when?</h3><p><%= isLost ? 'Your best guess is fine' : 'Where you picked it up' %></p></div></div>
       <div class="field">
-        <label for="secret_detail">Secret detail <span class="hint">(optional — only you and admins see this)</span></label>
-        <input id="secret_detail" type="text" name="secret_detail" maxlength="300" value="<%= form.secret_detail || '' %>" placeholder="e.g. ₹200 inside, lock-screen photo is a dog">
+        <label for="location"><%= isLost ? 'Lost near' : 'Found at' %></label>
+        <div class="input-icon">
+          <%- icon('map-pin') %>
+          <input id="location" type="text" name="location" required maxlength="120" list="places" value="<%= form.location || '' %>" placeholder="e.g. Central Library, 2nd floor">
+        </div>
+        <datalist id="places"><% config.places.forEach((p) => { %><option value="<%= p %>"><% }) %></datalist>
+        <div class="chip-row" data-fill="#location">
+          <% config.places.slice(0, 8).forEach((p) => { %><button type="button" class="chip-btn" data-value="<%= p %>"><%= p %></button><% }) %>
+        </div>
       </div>
+      <div class="field">
+        <label for="event_date"><%= isLost ? 'When did you lose it?' : 'When did you find it?' %></label>
+        <div class="chip-row" data-fill="#event_date" style="margin:0 0 10px">
+          <button type="button" class="chip-btn" data-value="<%= today %>">Today</button>
+          <button type="button" class="chip-btn" data-value="<%= yesterday %>">Yesterday</button>
+        </div>
+        <div class="input-icon">
+          <%- icon('calendar') %>
+          <input id="event_date" type="date" name="event_date" max="<%= today %>" value="<%= form.event_date || '' %>">
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-title"><span class="step-num"><%= ++n %></span><div><h3>Photos</h3><p><%= isLost ? 'Optional, but an old photo helps a lot' : 'Clear photos help the owner recognise it' %></p></div></div>
+      <label class="dropzone">
+        <input id="photos" type="file" name="photos" accept="image/*" multiple data-max="<%= config.MAX_PHOTOS %>">
+        <span class="dz-ico"><%- icon('camera') %></span>
+        <strong>Tap to add photos</strong>
+        <span class="hint">Up to <%= config.MAX_PHOTOS %> photos · automatically compressed<%= isLost ? '' : ' · avoid showing ID numbers' %></span>
+      </label>
+      <div class="previews" data-previews></div>
+    </section>
+
+    <% if (!isLost) { %>
+      <section class="panel">
+        <div class="panel-title"><span class="step-num"><%= ++n %></span><div><h3>Where is it now?</h3><p>So the owner knows where to collect it</p></div></div>
+        <div class="option-list">
+          <label class="option">
+            <input type="radio" name="handover" value="me" <%= form.handover === 'me' || !form.handover ? 'checked' : '' %>>
+            <span><span class="ico"><%- icon('user-round') %></span><span>I'm keeping it safe<br><span class="hint">The owner contacts you after you confirm them</span></span></span>
+          </label>
+          <% collectionPoints.forEach((p) => { %>
+            <label class="option">
+              <input type="radio" name="handover" value="<%= p %>" <%= form.handover === p ? 'checked' : '' %>>
+              <span><span class="ico"><%- icon('building-2') %></span><span>Deposited at <%= p %></span></span>
+            </label>
+          <% }) %>
+        </div>
+        <div class="field" style="margin-top:20px">
+          <label for="secret_detail"><%- icon('eye-off') %> Secret detail <span class="hint">· optional, only you &amp; admins see it</span></label>
+          <input id="secret_detail" type="text" name="secret_detail" maxlength="300" value="<%= form.secret_detail || '' %>" placeholder="e.g. ₹200 inside, lock-screen photo is a dog">
+          <div class="hint" style="margin-top:6px">Ask people who claim the item to describe this — it proves they're the real owner.</div>
+        </div>
+      </section>
     <% } %>
 
-    <div class="field">
-      <label for="photos">Photos <span class="hint">(up to <%= config.MAX_PHOTOS %><%= isLost ? ', if you have any' : '' %>)</span></label>
-      <div class="photo-picker">
-        <input id="photos" type="file" name="photos" accept="image/*" multiple data-max="<%= config.MAX_PHOTOS %>">
-        <div class="photo-previews" data-previews></div>
-        <p class="muted small" style="margin:8px 0 0"><%= isLost ? 'An old photo of the item (or a similar one) helps people recognise it.' : 'Clear photos help the owner recognise it. Avoid showing ID numbers or card details.' %></p>
-      </div>
-    </div>
+    <section class="panel">
+      <div class="panel-title"><span class="step-num"><%= ++n %></span><div><h3>Anything else?</h3><p>Colour, brand, stickers, what was inside…</p></div></div>
+      <textarea id="description" name="description" maxlength="1500" aria-label="Details" placeholder="<%= isLost ? 'e.g. Blue back cover with my name scratched on it. Lost during the 2 pm lab.' : 'Describe it, but keep one detail secret (above) so you can check the real owner.' %>"><%= form.description || '' %></textarea>
+    </section>
 
-    <p class="muted small" style="margin-top:16px">
-      This post closes automatically after <%= isLost ? config.LOST_EXPIRY_DAYS : config.FOUND_EXPIRY_DAYS %> days. You can extend it or close it earlier.
-    </p>
-    <button class="btn <%= isLost ? 'btn-lost' : 'btn-found' %> btn-block" style="margin-top:8px">Post &amp; notify everyone</button>
+    <div class="submit-bar">
+      <button class="btn btn-lg <%= isLost ? 'btn-lost' : 'btn-found' %>"><%- icon('send') %> Post &amp; alert the campus</button>
+      <span class="muted tiny">Closes automatically after <%= isLost ? config.LOST_EXPIRY_DAYS : config.FOUND_EXPIRY_DAYS %> days · you can extend or close it any time</span>
+    </div>
   </form>
 </div>
 <%- include('partials/foot') %>

@@ -1,44 +1,56 @@
 <%- include('partials/head') %>
-<div class="container narrow" style="max-width:560px">
-  <h1 style="margin:24px 0 8px">My profile</h1>
-  <% if (error) { %><div class="alert alert-error" role="alert" style="margin-bottom:12px"><%= error %></div><% } %>
+<div class="container narrow" style="max-width:640px">
+  <div class="page-head">
+    <span class="avatar avatar-lg" style="--c: <%= avatarColor(user.name) %>"><%= initials(user.name) %></span>
+    <div><h1>Profile</h1><p><%= user.phone %> · <%= user.department || '' %></p></div>
+  </div>
+  <% if (error) { %><div class="alert alert-error" role="alert" style="margin-bottom:16px"><%- icon('circle-alert') %><span><%= error %></span></div><% } %>
+
+  <div class="panel" style="margin-bottom:16px">
+    <div class="panel-title"><span class="step-num"><%- icon('bell-ring') %></span><div><h3>Alerts on this device</h3><p data-push-status>Checking…</p></div></div>
+    <div class="row">
+      <button class="btn btn-primary btn-sm" data-push-enable data-scope="all"><%- icon('bell-ring') %> Every new post</button>
+      <button class="btn btn-sm" data-push-enable data-scope="mine"><%- icon('user') %> Only my posts</button>
+      <button class="btn btn-sm btn-ghost" data-push-disable>Turn off</button>
+    </div>
+  </div>
+
   <form class="panel" method="post" action="/me/profile">
     <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <div class="panel-title"><span class="step-num"><%- icon('user') %></span><div><h3>Your details</h3><p>Your mobile number is only shared after you confirm a match.</p></div></div>
     <div class="field">
       <label>Mobile number</label>
-      <input type="text" value="<%= user.phone %>" disabled>
-      <div class="hint">Shared only with the other person after you confirm a match. To change it, ask an admin.</div>
+      <div class="input-icon"><%- icon('smartphone') %><input type="text" value="<%= user.phone %>" disabled></div>
+      <div class="hint" style="margin-top:6px">To change it, ask an admin.</div>
     </div>
     <div class="field">
       <label for="name">Full name</label>
-      <input id="name" type="text" name="name" required maxlength="80" value="<%= user.name %>">
+      <div class="input-icon"><%- icon('user') %><input id="name" type="text" name="name" required maxlength="80" value="<%= user.name %>"></div>
     </div>
-    <div class="field">
-      <label for="department">Department</label>
-      <select id="department" name="department">
-        <% config.departments.forEach((d) => { %><option <%= user.department === d ? 'selected' : '' %>><%= d %></option><% }) %>
-      </select>
+    <div class="grid-2 field">
+      <div>
+        <label for="department">Department</label>
+        <select id="department" name="department">
+          <% config.departments.forEach((d) => { %><option <%= user.department === d ? 'selected' : '' %>><%= d %></option><% }) %>
+        </select>
+      </div>
+      <div>
+        <label for="email">E-mail <span class="hint">· optional</span></label>
+        <input id="email" type="email" name="email" maxlength="120" value="<%= user.email || '' %>">
+      </div>
     </div>
-    <div class="field">
-      <label for="email">E-mail <span class="hint">(optional)</span></label>
-      <input id="email" type="email" name="email" maxlength="120" value="<%= user.email || '' %>">
-    </div>
-    <h3 style="margin-top:24px">Change password <span class="hint">(leave empty to keep it)</span></h3>
-    <div class="grid-2">
+    <div class="divider" style="height:1px;background:var(--line);margin:24px 0"></div>
+    <h3>Change password <span class="hint">· leave empty to keep it</span></h3>
+    <div class="grid-2" style="margin-top:12px">
       <div><label for="cp">Current password</label><input id="cp" type="password" name="current_password" autocomplete="current-password"></div>
       <div><label for="np">New password</label><input id="np" type="password" name="new_password" minlength="6" autocomplete="new-password"></div>
     </div>
-    <button class="btn btn-primary" style="margin-top:16px">Save</button>
+    <button class="btn btn-primary" style="margin-top:22px"><%- icon('check') %> Save changes</button>
   </form>
 
-  <div class="panel" style="margin-top:16px">
-    <h3>Notifications on this device</h3>
-    <p class="muted small" data-push-status>Checking…</p>
-    <div class="row">
-      <button class="btn btn-primary btn-sm" data-push-enable data-scope="all">All new posts</button>
-      <button class="btn btn-outline btn-sm" data-push-enable data-scope="mine">Only about my posts</button>
-      <button class="btn btn-outline btn-sm" data-push-disable>Turn off</button>
-    </div>
-  </div>
+  <form method="post" action="/logout" style="margin-top:16px;text-align:center">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <button class="btn btn-ghost"><%- icon('log-out') %> Sign out</button>
+  </form>
 </div>
 <%- include('partials/foot') %>

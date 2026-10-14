@@ -1,50 +1,68 @@
 <%- include('partials/head') %>
 <div class="container narrow">
-  <div class="row" style="margin:24px 0 8px">
-    <h1 style="margin:0">My posts</h1>
-    <span class="spacer"></span>
-    <a class="btn btn-lost btn-sm" href="/report/lost">+ Lost</a>
-    <a class="btn btn-found btn-sm" href="/report/found">+ Found</a>
+  <div class="page-head">
+    <span class="avatar avatar-lg" style="--c: <%= avatarColor(user.name) %>"><%= initials(user.name) %></span>
+    <div>
+      <h1>My posts</h1>
+      <p>Hi <%= user.name.split(' ')[0] %> — everything you've posted or responded to.</p>
+    </div>
   </div>
 
   <div class="panel">
+    <div class="panel-title">
+      <span class="step-num"><%- icon('package') %></span>
+      <h3>Posted by me</h3>
+      <span class="spacer"></span>
+      <a class="btn btn-sm btn-soft hide-mobile" href="/report/lost"><%- icon('plus') %> New post</a>
+    </div>
     <% if (!items.length) { %>
-      <p class="muted">You haven't posted anything yet.</p>
+      <div class="empty" style="border:0;padding:24px 0 8px">
+        <div class="e-ico"><%- icon('inbox') %></div>
+        <h3>Nothing posted yet</h3>
+        <p>Lost or found something? It takes less than a minute.</p>
+        <div class="row"><a class="btn btn-lost btn-sm" href="/report/lost">Report lost</a><a class="btn btn-found btn-sm" href="/report/found">Report found</a></div>
+      </div>
     <% } %>
-    <% items.forEach((i) => { %>
-      <a class="list-item" href="/items/<%= i.id %>">
-        <div class="list-thumb"><% if (i.photo) { %><img src="/uploads/<%= i.photo %>" alt=""><% } %></div>
-        <div style="flex:1;min-width:0">
-          <div class="row" style="gap:6px">
-            <span class="tag tag-<%= i.type %>"><%= i.type %></span>
-            <span class="tag tag-<%= i.status === 'resolved' ? 'resolved' : 'status' %>"><%= STATUS_LABEL[i.status] %></span>
-            <% if (i.pending_count) { %><span class="tag" style="background:var(--accent);color:#2b1a00"><%= i.pending_count %> new response<%= i.pending_count > 1 ? 's' : '' %></span><% } %>
+    <div class="list">
+      <% items.forEach((i) => { %>
+        <a class="list-item" href="/items/<%= i.id %>">
+          <div class="list-thumb"><% if (i.photo) { %><img src="/uploads/<%= i.photo %>" alt=""><% } else { %><%- include('partials/ph', { category: i.category }) %><% } %></div>
+          <div class="list-body">
+            <div class="row">
+              <span class="pill pill-<%= i.type %>"><%= i.type %></span>
+              <span class="pill pill-<%= i.status %>"><%= STATUS_LABEL[i.status] %></span>
+              <% if (i.pending_count) { %><span class="pill pill-pending"><%= i.pending_count %> new</span><% } %>
+            </div>
+            <b><%= i.title %></b>
+            <span class="muted tiny"><%= timeAgo(i.created_at) %><% if (i.status === 'open') { %> · <%= timeLeft(i.expires_at) %><% } %></span>
           </div>
-          <strong><%= i.title %></strong>
-          <div class="muted small"><%= timeAgo(i.created_at) %><% if (i.status === 'open') { %> · <%= timeLeft(i.expires_at) %><% } %></div>
-        </div>
-      </a>
-    <% }) %>
+          <%- icon('chevron-right', 'chev') %>
+        </a>
+      <% }) %>
+    </div>
   </div>
 
-  <h2 style="margin-top:32px">My responses</h2>
-  <div class="panel">
+  <div class="panel" style="margin-top:16px">
+    <div class="panel-title"><span class="step-num"><%- icon('message-circle') %></span><h3>My responses</h3></div>
     <% if (!responses.length) { %>
-      <p class="muted">When you tell someone "I found this" or "this is mine", it shows up here.</p>
+      <p class="muted small" style="margin:0">When you tell someone "I found this" or "this is mine", it shows up here.</p>
     <% } %>
-    <% responses.forEach((r) => { %>
-      <a class="list-item" href="/items/<%= r.item_id %>">
-        <div class="list-thumb"><% if (r.photo) { %><img src="/uploads/<%= r.photo %>" alt=""><% } %></div>
-        <div style="flex:1;min-width:0">
-          <div class="row" style="gap:6px">
-            <span class="tag tag-<%= r.type %>"><%= r.type %></span>
-            <span class="tag tag-<%= r.status === 'accepted' ? 'resolved' : 'status' %>"><%= r.status === 'accepted' ? 'confirmed — see contact' : r.status %></span>
+    <div class="list">
+      <% responses.forEach((r) => { %>
+        <a class="list-item" href="/items/<%= r.item_id %>">
+          <div class="list-thumb"><% if (r.photo) { %><img src="/uploads/<%= r.photo %>" alt=""><% } else { %><%- include('partials/ph', { category: r.category }) %><% } %></div>
+          <div class="list-body">
+            <div class="row">
+              <span class="pill pill-<%= r.type %>"><%= r.type %></span>
+              <span class="pill pill-<%= r.status %>"><%= r.status === 'accepted' ? 'Matched — see number' : r.status === 'pending' ? 'Waiting' : r.status %></span>
+            </div>
+            <b><%= r.title %></b>
+            <span class="muted tiny"><%= timeAgo(r.created_at) %></span>
           </div>
-          <strong><%= r.title %></strong>
-          <div class="muted small"><%= timeAgo(r.created_at) %></div>
-        </div>
-      </a>
-    <% }) %>
+          <%- icon('chevron-right', 'chev') %>
+        </a>
+      <% }) %>
+    </div>
   </div>
 </div>
 <%- include('partials/foot') %>

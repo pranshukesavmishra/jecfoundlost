@@ -1,20 +1,32 @@
 <%- include('partials/head') %>
+<%
+  const noteIcon = (t) => /confirmed|match/i.test(t) ? 'handshake' : /returned/i.test(t) ? 'party-popper' : /expire|close in/i.test(t) ? 'hourglass' : /found your|belongs to them/i.test(t) ? 'hand-helping' : /declined/i.test(t) ? 'circle-x' : 'bell';
+%>
 <div class="container narrow">
-  <h1 style="margin:24px 0 8px">Notifications</h1>
-  <div class="panel notify-banner hidden" id="notify-banner" style="margin-bottom:16px">
-    <div>
-      <strong>Get these on your phone too</strong>
-      <div class="muted small">Turn on push notifications for this device.</div>
-    </div>
+  <div class="page-head">
+    <div><h1>Notifications</h1><p>Updates about your posts and responses.</p></div>
+  </div>
+
+  <div class="push-banner hidden" id="notify-banner" style="margin:0 0 16px">
+    <span class="pb-ico"><%- icon('bell-ring') %></span>
+    <div class="pb-text"><b>Get these on your phone</b><span>Turn on push alerts for this device.</span></div>
     <button class="btn btn-primary btn-sm" data-push-enable><%- icon('bell') %> Turn on</button>
   </div>
-  <div class="panel">
-    <% if (!notes.length) { %><p class="muted">Nothing yet. We'll let you know when someone responds to your posts.</p><% } %>
-    <% notes.forEach((n) => { %>
-      <div class="note <%= n.is_read ? '' : 'unread' %>">
-        <% if (n.link) { %><a href="<%= n.link %>"><%= n.text %></a><% } else { %><%= n.text %><% } %>
-        <div class="muted small"><%= timeAgo(n.created_at) %></div>
+
+  <div class="panel" style="padding:10px">
+    <% if (!notes.length) { %>
+      <div class="empty" style="border:0">
+        <div class="e-ico"><%- icon('bell') %></div>
+        <h3>You're all caught up</h3>
+        <p>We'll let you know when someone responds to your posts.</p>
       </div>
+    <% } %>
+    <% notes.forEach((n) => { %>
+      <a class="note <%= n.is_read ? '' : 'unread' %>" href="<%= n.link || '#' %>">
+        <span class="n-ico"><%- icon(noteIcon(n.text)) %></span>
+        <span class="n-text"><%= n.text %><br><span class="muted tiny"><%= timeAgo(n.created_at) %></span></span>
+        <% if (!n.is_read) { %><span class="n-dot"></span><% } %>
+      </a>
     <% }) %>
   </div>
 </div>

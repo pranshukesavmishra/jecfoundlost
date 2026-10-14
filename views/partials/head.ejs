@@ -5,46 +5,74 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title><%= title ? `${title} · ${site.name}` : `${site.name} · ${site.college}` %></title>
   <meta name="description" content="Lost something at <%= site.college %>? Found something? Post it here so the whole campus can help. Powered by the <%= site.poweredBy %>.">
-  <meta name="theme-color" content="#1b3a6b">
+  <meta name="theme-color" content="#f5f6fa" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#070b18" media="(prefers-color-scheme: dark)">
   <meta name="csrf-token" content="<%= csrf %>">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="<%= site.logo %>">
   <link rel="apple-touch-icon" href="/img/icon-192.png">
-  <link rel="stylesheet" href="/css/style.css?v=2">
+  <link rel="preload" href="/fonts/plus-jakarta-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/css/style.css?v=6">
 </head>
 <body data-logged-in="<%= user ? '1' : '' %>">
 <header class="site-header">
   <div class="container">
     <a class="brand" href="/">
-      <img src="<%= site.logo %>" alt="<%= site.college %> logo" width="42" height="42">
+      <img class="brand-logo" src="<%= site.logo %>" alt="<%= site.college %> logo" width="40" height="40">
       <span class="brand-text">
         <strong><%= site.name %></strong>
         <span><%= site.college %></span>
       </span>
     </a>
-    <nav class="nav">
-      <span class="nav-desktop">
-        <a href="/" class="<%= path === '/' ? 'active' : '' %>">Browse</a>
-        <a href="/report/lost" class="<%= path === '/report/lost' ? 'active' : '' %>">I lost something</a>
-        <a href="/report/found" class="<%= path === '/report/found' ? 'active' : '' %>">I found something</a>
-        <% if (user) { %>
-          <a href="/me" class="<%= path === '/me' ? 'active' : '' %>">My posts</a>
-          <% if (user.role === 'admin') { %><a href="/admin" class="<%= path.startsWith('/admin') ? 'active' : '' %>">Admin</a><% } %>
-        <% } %>
-      </span>
-      <% if (user) { %>
-        <a class="bell" href="/me/notifications" aria-label="Notifications">
-          <%- icon('bell') %>
-          <span class="badge-count <%= unread ? '' : 'hidden' %>" id="unread-count"><%= unread %></span>
-        </a>
-        <a class="nav-desktop" href="/me/profile" title="<%= user.name %>"><%- icon('user') %></a>
-      <% } else { %>
-        <a href="/login?next=<%= encodeURIComponent(path) %>">Sign in</a>
-      <% } %>
+    <nav class="nav" aria-label="Main">
+      <a href="/" class="<%= path === '/' ? 'active' : '' %>">Browse</a>
+      <a href="/about" class="<%= path === '/about' ? 'active' : '' %>">How it works</a>
+      <% if (user) { %><a href="/me" class="<%= path === '/me' ? 'active' : '' %>">My posts</a><% } %>
+      <% if (user && user.role === 'admin') { %><a href="/admin" class="<%= path.startsWith('/admin') ? 'active' : '' %>">Admin</a><% } %>
     </nav>
+
+    <div class="header-actions">
+      <% if (user) { %>
+        <a class="icon-btn" href="/me/notifications" aria-label="Notifications">
+          <%- icon('bell') %>
+          <span class="dot-count <%= unread ? '' : 'hidden' %>" data-unread><%= unread %></span>
+        </a>
+      <% } %>
+
+      <details class="menu hide-mobile">
+        <summary class="btn btn-primary"><%- icon('plus') %> Report item</summary>
+        <div class="menu-panel">
+          <a href="/report/lost"><span class="menu-ico lost"><%- icon('scan-search') %></span><span>I lost something<span class="sub">Ask the campus to keep an eye out</span></span></a>
+          <a href="/report/found"><span class="menu-ico found"><%- icon('hand-heart') %></span><span>I found something<span class="sub">Help it get back to its owner</span></span></a>
+        </div>
+      </details>
+
+      <% if (user) { %>
+        <details class="menu hide-mobile">
+          <summary class="avatar" style="--c: <%= avatarColor(user.name) %>" aria-label="Account"><%= initials(user.name) %></summary>
+          <div class="menu-panel">
+            <div class="menu-head">
+              <span class="avatar" style="--c: <%= avatarColor(user.name) %>"><%= initials(user.name) %></span>
+              <div><b><%= user.name %></b><span class="sub"><%= user.phone %></span></div>
+            </div>
+            <a href="/me"><%- icon('package') %> My posts</a>
+            <a href="/me/notifications"><%- icon('bell') %> Notifications</a>
+            <a href="/me/profile"><%- icon('settings') %> Profile &amp; alerts</a>
+            <% if (user.role === 'admin') { %><a href="/admin"><%- icon('shield-check') %> Admin panel</a><% } %>
+            <form method="post" action="/logout"><input type="hidden" name="_csrf" value="<%= csrf %>"><button><%- icon('log-out') %> Sign out</button></form>
+          </div>
+        </details>
+      <% } else { %>
+        <a class="btn btn-ghost hide-mobile" href="/login?next=<%= encodeURIComponent(path) %>">Sign in</a>
+      <% } %>
+    </div>
   </div>
 </header>
-<main>
 <% if (flash) { %>
-  <div class="container" style="margin-top:16px"><div class="alert alert-ok" role="status"><%= flash %></div></div>
+  <div class="toast" role="status" data-toast>
+    <span class="t-ico"><%- icon('check') %></span>
+    <span><%= flash %></span>
+    <button type="button" aria-label="Dismiss" data-toast-close><%- icon('x') %></button>
+  </div>
 <% } %>
+<main>

@@ -138,7 +138,7 @@ test('lost item: post, respond, confirm, phone sharing, resolve', async () => {
   const res = await owner.post(`${redirect}/resolve`, { form: { note: 'Thanks Aman!' } });
   assert.equal(res.status, 302);
   const after = await visitor.get(redirect);
-  assert.match(after.text, /returned to its owner/);
+  assert.match(after.text, /Returned to its owner/);
   assert.equal(db.prepare('SELECT status FROM items WHERE id = ?').get(id).status, 'resolved');
   assert.match((await finder.get('/me/notifications')).text, /marked as returned/);
 });

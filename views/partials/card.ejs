@@ -1,21 +1,26 @@
-<a class="card" href="/items/<%= item.id %>">
-  <div class="card-img">
+<% const m = cat(item.category); %>
+<a class="card reveal" href="/items/<%= item.id %>">
+  <div class="card-media">
     <% if (item.photo) { %>
       <img src="/uploads/<%= item.photo %>" alt="" loading="lazy">
     <% } else { %>
-      <div class="placeholder"><%- icon('image') %><%= item.category %></div>
+      <%- include('ph', { category: item.category }) %>
     <% } %>
-    <span class="tag tag-<%= item.type %>"><%= item.type === 'lost' ? 'Lost' : 'Found' %></span>
+    <span class="pill pill-glass <%= item.type %>"><%= item.type === 'lost' ? 'Lost' : 'Found' %></span>
+    <% if (item.status === 'resolved') { %><span class="pill pill-glass done corner">Returned</span><% } %>
   </div>
   <div class="card-body">
     <div class="card-title"><%= item.title %></div>
-    <div class="card-meta"><%= item.location %></div>
+    <div class="meta"><%- icon('map-pin') %><span><%= item.location %></span></div>
+    <div class="meta"><%- icon(m.icon) %><span><%= m.short %> · <%= timeAgo(item.created_at) %></span></div>
     <div class="card-foot">
-      <span><%= timeAgo(item.created_at) %></span>
-      <% if (item.status === 'open') { %>
-        <span><%= item.response_count ? `${item.response_count} response${item.response_count > 1 ? 's' : ''}` : timeLeft(item.expires_at) %></span>
+      <span class="who"><span class="avatar avatar-sm" style="--c: <%= avatarColor(item.poster_name) %>"><%= initials(item.poster_name) %></span><span><%= shortName(item.poster_name) %></span></span>
+      <% if (item.status === 'open' && item.response_count) { %>
+        <span class="badge-soft hot"><%- icon('message-circle') %><%= item.response_count %></span>
+      <% } else if (item.status === 'open') { %>
+        <span class="badge-soft"><%- icon('hourglass') %><%= timeLeft(item.expires_at).replace(' left', '') %></span>
       <% } else { %>
-        <span class="tag tag-<%= item.status === 'resolved' ? 'resolved' : 'status' %>"><%= STATUS_LABEL[item.status] %></span>
+        <span class="badge-soft"><%= STATUS_LABEL[item.status] %></span>
       <% } %>
     </div>
   </div>

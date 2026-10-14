@@ -10,7 +10,7 @@ const DATA_DIR = path.resolve(process.env.DATA_DIR || path.join(ROOT, 'data'));
 const logoCandidates = ['jec-logo.png', 'jec-logo.jpg', 'jec-logo.webp', 'jec-logo.svg'];
 const logoFile = logoCandidates.find((f) => fs.existsSync(path.join(ROOT, 'public', 'img', f)));
 
-module.exports = {
+const config = {
   ROOT,
   DATA_DIR,
   UPLOAD_DIR: path.join(DATA_DIR, 'uploads'),
@@ -43,22 +43,23 @@ module.exports = {
     logo: logoFile ? `/img/${logoFile}` : '/img/logo.svg',
   },
 
-  categories: [
-    'ID Card / Documents',
-    'Mobile Phone',
-    'Wallet / Purse',
-    'Keys',
-    'Bag / Backpack',
-    'Books / Notes',
-    'Calculator',
-    'Laptop / Tablet',
-    'Earphones / Charger',
-    'Water Bottle / Tiffin',
-    'Clothing / Jacket',
-    'Watch / Jewellery',
-    'Spectacles',
-    'Lab Equipment / Tools',
-    'Other',
+  // name (stored in DB) -> short label, Lucide icon, colour
+  categoryList: [
+    { name: 'ID Card / Documents', short: 'ID & Documents', icon: 'id-card', color: '#2563eb' },
+    { name: 'Mobile Phone', short: 'Phone', icon: 'smartphone', color: '#7c3aed' },
+    { name: 'Wallet / Purse', short: 'Wallet', icon: 'wallet', color: '#c2410c' },
+    { name: 'Keys', short: 'Keys', icon: 'key-round', color: '#ca8a04' },
+    { name: 'Bag / Backpack', short: 'Bag', icon: 'backpack', color: '#0d9488' },
+    { name: 'Books / Notes', short: 'Books & Notes', icon: 'book-open', color: '#db2777' },
+    { name: 'Calculator', short: 'Calculator', icon: 'calculator', color: '#4f46e5' },
+    { name: 'Laptop / Tablet', short: 'Laptop', icon: 'laptop', color: '#0284c7' },
+    { name: 'Earphones / Charger', short: 'Earphones', icon: 'headphones', color: '#9333ea' },
+    { name: 'Water Bottle / Tiffin', short: 'Bottle & Tiffin', icon: 'glass-water', color: '#0891b2' },
+    { name: 'Clothing / Jacket', short: 'Clothing', icon: 'shirt', color: '#ea580c' },
+    { name: 'Watch / Jewellery', short: 'Watch & Jewellery', icon: 'watch', color: '#a16207' },
+    { name: 'Spectacles', short: 'Spectacles', icon: 'glasses', color: '#475569' },
+    { name: 'Lab Equipment / Tools', short: 'Tools', icon: 'wrench', color: '#65a30d' },
+    { name: 'Other', short: 'Other', icon: 'shapes', color: '#64748b' },
   ],
 
   departments: [
@@ -105,3 +106,9 @@ module.exports = {
     'Main Gate Security Desk',
   ],
 };
+
+config.categories = config.categoryList.map((c) => c.name);
+const byName = Object.fromEntries(config.categoryList.map((c) => [c.name, c]));
+config.categoryMeta = (name) => byName[name] || byName.Other;
+
+module.exports = config;
