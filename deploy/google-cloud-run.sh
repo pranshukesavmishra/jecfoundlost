@@ -23,9 +23,33 @@ die() { printf '\n\033[1;31mError: %s\033[0m\n' "$*" >&2; exit 1; }
 
 [[ -f package.json && -f Dockerfile ]] || die "Run this from the jecfoundlost folder (cd jecfoundlost)."
 
+# ---------------------------------------------------------------- project
+# Use the selected project if it exists; otherwise let the user pick one or create one.
 PROJECT_ID="${PROJECT_ID:-$(gcloud config get-value project 2>/dev/null || true)}"
-[[ -n "$PROJECT_ID" ]] || die "No project selected. Run: gcloud config set project YOUR_PROJECT_ID"
-gcloud config set project "$PROJECT_ID" >/dev/null
+if [[ -n "$PROJECT_ID" ]] && ! gcloud projects describe "$PROJECT_ID" >/dev/null 2>&1; then
+  echo "Project \"$PROJECT_ID\" was not found (or you don't have access to it)."
+  PROJECT_ID=""
+fi
+if [[ -z "$PROJECT_ID" ]]; then
+  mapfile -t PROJECTS < <(gcloud projects list --format='value(projectId)' --sort-by=projectId 2>/dev/null || true)
+  CHOICE="n"
+  if ((${#PROJECTS[@]})); then
+    say "Which Google Cloud project should the site use?"
+    for i in "${!PROJECTS[@]}"; do printf '  %d) %s\n' "$((i + 1))" "${PROJECTS[$i]}"; done
+    echo "  n) Create a new project"
+    read -rp "Type a number (or n): " CHOICE
+  fi
+  if [[ "$CHOICE" =~ ^[0-9]+$ ]] && ((CHOICE >= 1 && CHOICE <= ${#PROJECTS[@]})); then
+    PROJECT_ID="${PROJECTS[$((CHOICE - 1))]}"
+  elif [[ "$CHOICE" == [nN] ]]; then
+    PROJECT_ID="jec-lost-found-$((RANDOM % 900000 + 100000))"
+    say "Creating project $PROJECT_ID"
+    gcloud projects create "$PROJECT_ID" --name="JEC Lost and Found" --quiet
+  else
+    die "Please type one of the numbers shown, or n."
+  fi
+fi
+gcloud config set project "$PROJECT_ID" >/dev/null 2>&1
 PROJECT_NUMBER="$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)')"
 BUCKET="${BUCKET:-${PROJECT_ID}-jec-lostfound}"
 RUN_SA="jec-lostfound-run@${PROJECT_ID}.iam.gserviceaccount.com"
@@ -60,10 +84,29 @@ fi
 # ---------------------------------------------------------------- services
 say "Enabling Google Cloud services (takes a minute the first time)"
 gcloud services enable cloudbilling.googleapis.com --quiet
-if [[ "$(gcloud billing projects describe "$PROJECT_ID" --format='value(billingEnabled)' 2>/dev/null)" != "True" ]]; then
-  die "Billing is not enabled for $PROJECT_ID. Cloud Run's free tier still needs a billing account:
-  https://console.cloud.google.com/billing/linkedaccount?project=$PROJECT_ID
-Link one, then run this script again."
+billing_enabled() { [[ "$(gcloud billing projects describe "$PROJECT_ID" --format='value(billingEnabled)' 2>/dev/null)" == "True" ]]; }
+if ! billing_enabled; then
+  # Link a billing account automatically if the user has one.
+  mapfile -t ACCOUNTS < <(gcloud billing accounts list --filter=open=true --format='value(name.basename())' 2>/dev/null || true)
+  ACCOUNT=""
+  if ((${#ACCOUNTS[@]} == 1)); then
+    ACCOUNT="${ACCOUNTS[0]}"
+  elif ((${#ACCOUNTS[@]} > 1)); then
+    say "Which billing account should pay (Cloud Run's free tier covers normal college use)?"
+    mapfile -t NAMES < <(gcloud billing accounts list --filter=open=true --format='value(displayName)')
+    for i in "${!ACCOUNTS[@]}"; do printf '  %d) %s (%s)\n' "$((i + 1))" "${NAMES[$i]:-}" "${ACCOUNTS[$i]}"; done
+    read -rp "Type a number: " CHOICE
+    if ! [[ "$CHOICE" =~ ^[0-9]+$ ]] || ((CHOICE < 1 || CHOICE > ${#ACCOUNTS[@]})); then die "Please type one of the numbers shown."; fi
+    ACCOUNT="${ACCOUNTS[$((CHOICE - 1))]}"
+  fi
+  if [[ -n "$ACCOUNT" ]]; then
+    say "Linking billing account $ACCOUNT to $PROJECT_ID"
+    gcloud billing projects link "$PROJECT_ID" --billing-account="$ACCOUNT" --quiet >/dev/null
+  fi
+  billing_enabled || die "Billing is not enabled for $PROJECT_ID. Cloud Run's free tier still needs a billing account (a card):
+  1. Open https://console.cloud.google.com/billing/linkedaccount?project=$PROJECT_ID
+  2. Create or link a billing account
+  3. Run this script again:  bash deploy/google-cloud-run.sh"
 fi
 gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com compute.googleapis.com \
   storage.googleapis.com iam.googleapis.com iamcredentials.googleapis.com sts.googleapis.com --quiet

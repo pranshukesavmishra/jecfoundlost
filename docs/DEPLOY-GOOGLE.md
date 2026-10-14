@@ -12,21 +12,21 @@ the Mumbai region costs a few rupees a month for thousands of photos. Google req
 
 ## One-time setup (about 10 minutes)
 
-### 1. Create a Google Cloud project
-1. Open **https://console.cloud.google.com** and sign in with your Google account.
-2. Top bar → project picker → **New project** → name `jec-lost-found` → **Create**.
-3. If asked, link a **billing account** (Billing → Link a billing account).
+### 1. Make sure you have a billing account
+Open **https://console.cloud.google.com/billing** and create a billing account if you don't have one
+(Google asks for a card; the free tier still applies). You don't need to create a project: the script can do it.
 
 ### 2. Run the setup script in Cloud Shell
 1. Open **https://shell.cloud.google.com** (Google's free terminal in the browser).
-2. Paste these lines (replace `YOUR_PROJECT_ID` with the ID shown in the project picker):
+2. Paste these lines exactly as they are (no project ID needed):
    ```bash
-   gcloud config set project YOUR_PROJECT_ID
    git clone https://github.com/pranshukesavmishra/jecfoundlost.git
    cd jecfoundlost
    bash deploy/google-cloud-run.sh
    ```
-3. It asks for your **admin mobile number** and an **admin password**, then works for 5–8 minutes.
+3. The script shows your Google Cloud projects. **Type the number** of the one to use, or **n** to create a new one.
+   It links your billing account automatically (if you have one) and asks for your **admin mobile number**
+   and an **admin password**, then works for 5–8 minutes.
 4. At the end it prints: **`✅ Your site is live: https://jec-lost-found-….run.app`** 🎉
 
 ### 3. Turn on automatic deploys from GitHub
